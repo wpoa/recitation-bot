@@ -1,0 +1,6 @@
+argparse==1.2.1
+beautifulsoup4==4.3.2
+httplib2==0.9
+requests==2.3.0
+wget==2.0
+wsgiref==0.1.2
