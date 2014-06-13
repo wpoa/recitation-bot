@@ -50,7 +50,7 @@ class journal_article():
             archivefile_url = record.oa.records.record.find(format='tgz')['href']
 
             archivefile_name = wget.filename_from_url(archivefile_url)
-            complete_path_targz = os.path.join(self.dirs.data_dir, archivefile_name)
+            complete_path_targz = os.path.join(self.dirs["data_dir"], archivefile_name)
             urllib.urlretrieve(archivefile_url, complete_path_targz)
             self.complete_path_targz = complete_path_targz
 
@@ -65,9 +65,9 @@ class journal_article():
     def extract_targz(self):
         try:
             directory_name, file_extension = self.complete_path_targz.split('.tar.gz')
-            self.dirs.article_dir = directory_name
+            self.dirs["article_dir"] = directory_name
             tar = tarfile.open(self.complete_path_targz, 'r:gz')
-            tar.extractall(self.dirs.data_dir)
+            tar.extractall(self.dirs["data_dir"])
             self.phase['extract_targz'] = True
         except:
             raise ConversionError(message='trouble extracting the targz', doi=self.doi)
@@ -75,12 +75,12 @@ class journal_article():
 
     def find_nxml(self):
         try:
-            self.dirs.qualified_article_dir = os.path.join(self.dirs.data_dir, self.dirs.article_dir)
-            nxml_files = [file for file in os.listdir(self.dirs.qualified_article_dir) if file.endswith(".nxml")]
+            self.dirs["qualified_article_dir"] = os.path.join(self.dirs["data_dir"], self.dirs["article_dir"])
+            nxml_files = [file for file in os.listdir(self.dirs["qualified_article_dir"]) if file.endswith(".nxml")]
             if len(nxml_files) != 1:
                 raise ConversionError(message='we need excatly 1 nxml file, no more, no less', doi=self.doi)
             nxml_file = nxml_files[0]
-            self.nxml_path = os.path.join(self.dirs.qualified_article_dir, nxml_file)
+            self.nxml_path = os.path.join(self.dirs["qualified_article_dir"], nxml_file)
             self.phase['find_nxml'] = True
         except ConversionError as ce:
             raise ce
@@ -91,15 +91,15 @@ class journal_article():
     def xslt_it(self):
         try:
             doi_file_name = self.doi + '.mw.xml'
-            mw_xml_file = os.path.join(self.dirs.data_dir, doi_file_name)
+            mw_xml_file = os.path.join(self.dirs["data_dir"], doi_file_name)
             doi_file_name_pre_slash = doi_file_name.split('/')[0]
             if doi_file_name_pre_slash == doi_file_name:
                 raise ConversionError(message='i think there should be a slash in the doi', doi=self.doi)
-            mw_xml_dir = os.path.join(self.dirs.data_dir, doi_file_name_pre_slash)
+            mw_xml_dir = os.path.join(self.dirs["data_dir"], doi_file_name_pre_slash)
             if not os.path.exists(mw_xml_dir):
                 os.makedirs(mw_xml_dir)
             mw_xml_file_handle = open(mw_xml_file, 'w')
-            call_return = call(['xsltproc', self.dirs.jats2mw_xsl, self.nxml_path], stdout=mw_xml_file_handle)
+            call_return = call(['xsltproc', self.dirs["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle)
             if call_return == 0: #things went well
                 print 'success xslting'
                 mw_xml_file_handle.close()
@@ -139,7 +139,8 @@ class journal_article():
             raise ConversionError(message='could not upload images')
 
     def push_to_wikisource(self):
-        page = pywikibot.Page(self.dirs.wikisource_site, self.dirs.wikisource_basepath + self.title)
+        site = pywikibot.Site(self.dirs["wikisource_site"], "wikisource")
+        page = pywikibot.Page(site, self.dirs["wikisource_basepath"] + self.title)
         comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
         page.put(newtext=self.wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
@@ -147,9 +148,10 @@ class journal_article():
     
 
     def push_redirect_wikisource(self):
-        page = pywikibot.Page(self.dirs.wikisource_site, self.dirs.wikisource_basepath + self.doi)
+        site = pywikibot.Site(self.dirs["wikisource_site"], "wikisource")
+        page = pywikibot.Page(site, self.dirs["wikisource_basepath"] + self.doi)
         comment = "Making a redirect"
-        redirtext = '#REDIRECT [[' + self.dirs.wikisource_basepath + self.title +']]'
+        redirtext = '#REDIRECT [[' + self.dirs["wikisource_basepath"] + self.title +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
         self.phase['push_redirect_wikisource'] = True
 
