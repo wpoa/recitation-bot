@@ -23,15 +23,7 @@ class journal_article():
         #a phase is like, have we downloaded it, have we gotten the pmcid, uploaded the images etc.
         self.phase = defaultdict(bool)
     
-    def phase_report(self, function):
-        @wraps(function)
-        def wrapper(*args, **kwargs):
-            function_name = function.__name__()
-            self.phase[function_name] = True
-            return function(*args, **kwargs)
-        return wrapper
 
-    @phase_report
     def get_pmcid(self):
         idpayload = {'ids' : self.doi, 'format': 'json'}
         idconverter = requests.get('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/', params=idpayload)
@@ -42,11 +34,12 @@ class journal_article():
                 record = records[0]
             else:
                 raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
-            self.pmcid = record['pmcid']            
+            self.pmcid = record['pmcid'] 
+            self.phase['get_pmcid'] = True           
         except:
             raise ConversionError(message='cannot get pmcid',doi=self.doi)
 
-    @phase_report    
+    
     def get_targz(self):
         try:
             archivefile_payload = {'id' : self.pmcid}
@@ -63,21 +56,23 @@ class journal_article():
 
              # @TODO For some reason, wget hangs and doesn't finish, using
              # urllib.urlretrieve() instead for this for now.
-#            archivefile = wget.download(archivefileurl, wget.bar_thermometer)
+             # archivefile = wget.download(archivefileurl, wget.bar_thermometer)
+            self.phase['get_targz'] = True
         except:
             raise ConversionError(message='could not get the tar.gz file from the pubmed', doi=self.doi)
 
-    @phase_report
+
     def extract_targz(self):
         try:
             directory_name, file_extension = self.complete_path_targz.split('.tar.gz')
             self.dirs.article_dir = directory_name
             tar = tarfile.open(self.complete_path_targz, 'r:gz')
             tar.extractall(self.dirs.data_dir)
+            self.phase['extract_targz'] = True
         except:
             raise ConversionError(message='trouble extracting the targz', doi=self.doi)
     
-    @phase_report
+
     def find_nxml(self):
         try:
             self.dirs.qualified_article_dir = os.path.join(self.dirs.data_dir, self.dirs.article_dir)
@@ -86,12 +81,13 @@ class journal_article():
                 raise ConversionError(message='we need excatly 1 nxml file, no more, no less', doi=self.doi)
             nxml_file = nxml_files[0]
             self.nxml_path = os.path.join(self.dirs.qualified_article_dir, nxml_file)
+            self.phase['find_nxml'] = True
         except ConversionError as ce:
             raise ce
         except:
             raise ConversionError(message='could not traverse the search dierctory for nxml files', doi=self.doi)
 
-    @phase_report    
+    
     def xslt_it(self):
         try:
             doi_file_name = self.doi + '.mw.xml'
@@ -108,38 +104,55 @@ class journal_article():
                 print 'success xslting'
                 mw_xml_file_handle.close()
                 self.mw_xml_file = mw_xml_file
+                self.phase['xslt_it'] = True
             else:
                 raise ConversionError(message='something went wrong during the xsltprocessing', doi=self.doi)
         except:
             raise ConversionError(message='something went wrong, probably munging the file structure', doi=self.doi)
     
-    @phase_report
+
     def get_mwtext_element(self):
-        tree = etree.parse(self.mw_xml_file)
-        root = tree.getroot()
-        mwtext = root.find('mw:page/mw:revision/mw:text', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
-        self.wikitext = mwtext.text
+        try:
+            tree = etree.parse(self.mw_xml_file)
+            root = tree.getroot()
+            mwtext = root.find('mw:page/mw:revision/mw:text', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
+            self.wikitext = mwtext.text
+            self.phase['get_mwtext_element'] = True
+        except:
+            raise ConversionError(message='no text element')
 
-    @phase_report
     def get_mwtitle_element(self):
-        tree = etree.parse(self.mw_xml_file)
-        root = tree.getroot()
-        mwtitle = root.find('mw:page/mw:title', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
-        self.title = mwtitle.text
+        try:
+            tree = etree.parse(self.mw_xml_file)
+            root = tree.getroot()
+            mwtitle = root.find('mw:page/mw:title', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
+            self.title = mwtitle.text
+            self.phase['get_mw_title_element'] = True
+        except:
+            raise ConversionError(message='mw_title_element not found')
 
-    @phase_report
+    def upload_images(self):
+        try:
+            pass
+            self.phase['upload_images'] = True
+        except:
+            raise ConversionError(message='could not upload images')
+
     def push_to_wikisource(self):
         page = pywikibot.Page(self.dirs.wikisource_site, self.dirs.wikisource_basepath + self.title)
         comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
         page.put(newtext=self.wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
+        self.phase['push_to_wikisource'] = True
     
-    @phase_report
+
     def push_redirect_wikisource(self):
         page = pywikibot.Page(self.dirs.wikisource_site, self.dirs.wikisource_basepath + self.doi)
         comment = "Making a redirect"
         redirtext = '#REDIRECT [[' + self.dirs.wikisource_basepath + self.title +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
+        self.phase['push_redirect_wikisource'] = True
+
 
 class ConversionError(Exception):
     def __init__(self, message, doi):
