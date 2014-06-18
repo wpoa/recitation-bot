@@ -37,10 +37,8 @@ if __name__ == '__main__':
             ja = shelf[doi]
             if ja.phase['find_nxml']:
                 ja.extract_metadata()
-                ja.get_mwtitle_element()
                 ja.upload_images()
                 ja.replace_image_names_in_wikitext()
                 ja.push_to_wikisource()
-            
             shelf[doi] = ja
     shelf.close()

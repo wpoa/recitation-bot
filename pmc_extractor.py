@@ -6,6 +6,7 @@ from datetime import date
 from os import listdir, path
 from sys import stderr
 from xml.etree.ElementTree import ElementTree
+from collections import defaultdict
 
 def extract_metadata(target_nxml):
     """
@@ -25,6 +26,7 @@ def extract_metadata(target_nxml):
     metadata['article-license-url'], metadata['article-license-text'], metadata['article-copyright-statement'] = _get_article_licensing(tree)
     metadata['article-copyright-holder'] = _get_article_copyright_holder(tree)
     metadata['article-categories'] = _get_article_categories(tree)
+    metadata['images'] = _get_image_captions(tree)
     #metadata['supplementary-materials'] = _get_supplementary_materials(tree)
 
 
@@ -38,6 +40,28 @@ def _strip_whitespace(text):
         [line.strip() for line in text.splitlines()]
     )
     return text.strip('\n')
+
+def _get_image_captions(tree):
+    """
+    Given an ElementTree returns iamges as a
+    dictionary containing, file_name label and caption.
+    """
+    for fig in tree.iter('fig'):
+        fig_captions = defaultdict(dict)
+        for fig in tree.iter('fig'):
+            graphic = fig.find('graphic')
+            file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
+            label_text = ''
+            label = fig.find('label')
+            if label is not None:
+                label_text = label.text
+                fig_captions[file_name]['label'] = label_text
+            caption = fig.find('caption/p')
+            caption_text = ''
+            if caption is not None:
+                caption_text = _strip_whitespace(''.join(caption.itertext()))
+            fig_captions[file_name]['caption'] = caption_text
+    return fig_captions
 
 def _get_article_categories(tree):
     """

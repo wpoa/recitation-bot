@@ -24,7 +24,7 @@ def _escape(text):
 def _trim(text):
     return ' '.join(text.split())
 
-def page(metadata):
+def page(metadata, caption):
     
     article_doi = metadata['doi']
     authors = metadata['article-contrib-authors']
@@ -41,7 +41,7 @@ def page(metadata):
     # = metadata['article-copyright-holder']
     categories = metadata['article-categories']
 
-    mimetype = 'image'
+    mimetype = 'image' #need this for templating
     
     
     license_templates = {
@@ -63,7 +63,10 @@ def page(metadata):
     text = "=={{int:filedesc}}==\n\n"
     text += "{{Information\n"
     
-    description = "%s %s %s" % (_escape('Media belonging to article '), _escape(article_doi), _escape(' which is cited on Wikipedia, and automatically imported.'))
+    if caption:
+        description = _escape(caption)
+    else:
+        description = "%s %s" % (_escape('Media belonging article cited on Wikipedia with DOI:'), _escape(article_doi))
     
     text += "|Description=\n"
     if len(description.strip()) > 0:
@@ -114,10 +117,6 @@ def page(metadata):
         if len(category.split()) > 1:  # no single-word categories
             text += "[[Category:%s]]\n" % _escape(category)
     text += "[[Category:Media from %s]]\n" % _escape(journal_title)
-    text += "[[Category:Uploaded with Open Access Media Importer]]\n"
-    text += '[[Category:Uploaded with Open Access Media Importer and needing category review]]\n'
-    if mimetype == 'audio':
-        text += '[[Category:Audio files from open-access scholarly articles]]'
-    if mimetype == 'video':
-        text += '[[Category:Videos from open-access scholarly articles]]'
+    text += "[[Category:Uploaded with reCitation Bot]]\n"
+    text += '[[Category:Uploaded_with reCitation Bot and needing category review]]\n'
     return text

@@ -15,6 +15,7 @@ import re
 import ast
 import pmc_extractor
 import commons_template
+import helpers
 
 class journal_article():
     '''This class represents a journal article 
@@ -95,6 +96,12 @@ class journal_article():
         
     def extract_metadata(self):
         self.metadata = pmc_extractor.extract_metadata(self.nxml_path)
+        if not any(self.metadata['article-license-url'],
+                   self.metadata['article-license-text'],
+                   self.metadata['article-copyright-statement']):
+            raise ConversionError(message='no article license', doi=self.doi)
+            
+
         self.phase['extract_metadata'] = True
 
     
@@ -143,48 +150,26 @@ class journal_article():
         
 
 
-    def upload_images(self):
-        #want to make the name commons-compatible in the way that OAMI does
-        def harmonizing_name(image_name, article_title):
-            '''Copy Pasta-ed from open access media importer to get it the same'''
-            dirty_prefix = article_title
-            dirty_prefix = dirty_prefix.replace('\n', '')
-            dirty_prefix = ' '.join(dirty_prefix.split()) # remove multiple spaces
-            forbidden_chars = u"""?,;:^/!<>"`'±#[]|{}ʻʾʿ᾿῾‘’“”"""
-            for character in forbidden_chars:
-                dirty_prefix = dirty_prefix.replace(character, '')
-            # prefix is first hundred chars of title sans forbidden characters
-            prefix = '-'.join(dirty_prefix[:100].split(' '))
-            # if original title is longer than cleaned up title, remove last word
-            if len(dirty_prefix) > len(prefix):
-                prefix = '-'.join(prefix.split('-')[:-1])
-            if prefix[-1] != '-':
-                prefix += '-'
-            return prefix + image_name
-        
-        #get all the images in our folder with valid extension
-        self.image_files = [image_file for image_file in os.listdir(self.qualified_article_dir) if \
-               any([image_file.endswith(extension) for extension in self.static_vars['image_extensions'] ] ) ]
-        
+    def upload_images(self):        
         commons = pywikibot.Site('commons', 'commons')
         if not commons.logged_in():
             commons.login()
         #commons = pywikibot.Site('test2', 'wikipedia')
-        
-        #our data type will be a dict with the jpg and what it ended-up being called on commons
-        
-        self.used_image_names = dict()
-
-        for image_file in self.image_files:
+        for image in self.metadata['images'].iterkeys():
+            image_file = image + '.jpg'
             qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
-            harmonized_name = harmonizing_name(image_file, self.title)
+            if not os.path.isfile(qualified_image_location):
+                raise ConversionError(message='%s is not a jpg uploadable' % qualified_image_location, doi=self.doi)
+            harmonized_name = helpers.harmonizing_name(image_file, self.title)
             #print harmonized_name
             image_page = pywikibot.ImagePage(commons, harmonized_name)
-            page_text = commons_template.page(self.metadata)
+            page_text = commons_template.page(self.metadata, self.metadata['images'][image]['caption'])
             image_page._text = page_text
             try:
-                commons.upload(imagepage=image_page, source_filename=qualified_image_location, comment='Automatic upload of media from: [[doi:' + self.doi+']]')
-                self.used_image_names[image_file] = harmonized_name
+                commons.upload(imagepage=image_page, source_filename=qualified_image_location, 
+                               comment='Automatic upload of media from: [[doi:' + self.doi+']]',
+                               ignore_warnings=False) #DANGER OF OVERWRITING IF TRUE
+                self.metadata['images'][image]['uploaded_name'] = harmonized_name
             except pywikibot.exceptions.UploadWarning as warning:
                 warning_string = unicode(warning)
                 if warning_string.startswith('Uploaded file is a duplicate of '):
@@ -192,28 +177,23 @@ class journal_article():
                     duplicate_list = ast.literal_eval(liststring)
                     duplicate_name = duplicate_list[0]
                     print 'duplicate found: ', duplicate_name
-                    self.used_image_names[image_file] = duplicate_name
+                    self.metadata['images'][image]['uploaded_name'] = duplicate_name
                 elif warning_string.endswith('already exists.'):
-                    self.used_image_names[image_file] = harmonized_name
+                    self.metadata['images'][image]['uploaded_name'] = harmonized_name
+                    image_page.put(newtext=page_text, comment='Updating descrpition')
                 else:
                     raise
         self.phase['upload_images'] = True
 
                 
-    def replace_image_names_in_wikitext(self):
-        
-        image_names_without_extension = {image_file: os.path.splitext(image_file)[0] for image_file in self.used_image_names.iterkeys()}
-        
+    def replace_image_names_in_wikitext(self):        
         replacing_text = self.wikitext
-        for image_file, image_name_without_extension in image_names_without_extension.iteritems():
-            extensionless_re = r'File:(' + image_name_without_extension + r')\|'
-            new_file_text = r'File:' + self.used_image_names[image_file] + r'|'
+        for image in self.metadata['images'].iterkeys():
+            extensionless_re = r'File:(' + image + r')\|'
+            new_file_text = r'File:' + self.metadata['images'][image]['uploaded_name'] + r'|'
             replacing_text, occurences = re.subn(extensionless_re, new_file_text, replacing_text)
-            if occurences < 1:
-                print occurences, image_file, image_name_without_extension
-            if occurences > 1:
-                # see if it has the .jpg already baked i
-                print occurences, image_file, image_name_without_extension
+            if occurences != 1:
+                print occurences, image
         #print replacing_text
         self.image_fixed_wikitext = replacing_text
 
