@@ -38,7 +38,7 @@ if __name__ == '__main__':
             if ja.phase['find_nxml']:
                 ja.extract_metadata()
                 ja.upload_images()
-                ja.replace_image_names_in_wikitext()
-                ja.push_to_wikisource()
+                #ja.replace_image_names_in_wikitext()
+                #ja.push_to_wikisource()
             shelf[doi] = ja
     shelf.close()

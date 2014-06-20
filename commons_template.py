@@ -27,6 +27,8 @@ def _trim(text):
 def page(metadata, caption):
     
     article_doi = metadata['doi']
+    pmcid = metadata['pmcid']
+    pmid = metadata['pmid']
     authors = metadata['article-contrib-authors']
     article_title = metadata['article-title'] 
     # = metadata['article-abstract']
@@ -82,6 +84,10 @@ def page(metadata, caption):
     text += "| doi = %s\n" % _escape(article_doi)
     text += "| journal = %s\n" % _escape(journal_title)
     text += "| year = %s\n" % _escape(article_year)
+    if pmid:
+        text += "| pmid = %s\n" % _escape(pmid)
+    if pmcid:
+        text += "| pmc = %s\n" % _escape(pmcid)
     text += "}}\n"
     text += "|Author= %s\n" % _escape(authors)
     text += "|Permission= %s\n" % license_template

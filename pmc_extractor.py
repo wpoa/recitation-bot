@@ -17,6 +17,8 @@ def extract_metadata(target_nxml):
 
     metadata = dict()
     metadata['doi'] = _get_article_doi(tree)
+    metadata['pmcid'] = _get_pmcid(tree)
+    metadata['pmid'] = _get_pmid(tree)
     metadata['article-contrib-authors'] = _get_article_contrib_authors(tree)
     metadata['article-title'] = _get_article_title(tree)
     metadata['article-abstract'] = _get_article_abstract(tree)
@@ -596,6 +598,15 @@ def _get_pmcid(tree):
     front = ElementTree(tree).find('front')
     for article_id in front.iter('article-id'):
         if article_id.attrib['pub-id-type'] == 'pmc':
+            return article_id.text
+        
+def _get_pmid(tree):
+    """
+    Given an ElementTree, returns PubMed Central ID.
+    """
+    front = ElementTree(tree).find('front')
+    for article_id in front.iter('article-id'):
+        if article_id.attrib['pub-id-type'] == 'pmid':
             return article_id.text
 
 def _get_article_doi(tree):

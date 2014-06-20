@@ -96,9 +96,9 @@ class journal_article():
         
     def extract_metadata(self):
         self.metadata = pmc_extractor.extract_metadata(self.nxml_path)
-        if not any(self.metadata['article-license-url'],
+        if not any([self.metadata['article-license-url'],
                    self.metadata['article-license-text'],
-                   self.metadata['article-copyright-statement']):
+                   self.metadata['article-copyright-statement']]):
             raise ConversionError(message='no article license', doi=self.doi)
             
 
