@@ -20,13 +20,13 @@ import helpers
 class journal_article():
     '''This class represents a journal article 
     and its lifecycle to make it to Wikisource.'''
-    def __init__(self, doi, static_vars):
+    def __init__(self, doi, parameters):
         '''journal_articles are represented by dois'''
         if doi.startswith('http://dx.doi.org/'):
             doi_parts = doi.split('http://dx.doi.org/')
             doi = doi_parts[1] 
         self.doi = doi
-        self.static_vars = static_vars
+        self.parameters = parameters
         #a phase is like, have we downloaded it, have we gotten the pmcid, uploaded the images etc.
         self.phase = defaultdict(bool)
     
@@ -57,7 +57,7 @@ class journal_article():
             archivefile_url = record.oa.records.record.find(format='tgz')['href']
 
             archivefile_name = wget.filename_from_url(archivefile_url)
-            complete_path_targz = os.path.join(self.static_vars["data_dir"], archivefile_name)
+            complete_path_targz = os.path.join(self.parameters["data_dir"], archivefile_name)
             urllib.urlretrieve(archivefile_url, complete_path_targz)
             self.complete_path_targz = complete_path_targz
 
@@ -74,7 +74,7 @@ class journal_article():
             directory_name, file_extension = self.complete_path_targz.split('.tar.gz')
             self.article_dir = directory_name
             tar = tarfile.open(self.complete_path_targz, 'r:gz')
-            tar.extractall(self.static_vars["data_dir"])
+            tar.extractall(self.parameters["data_dir"])
             self.phase['extract_targz'] = True
         except:
             raise ConversionError(message='trouble extracting the targz', doi=self.doi)
@@ -82,7 +82,7 @@ class journal_article():
 
     def find_nxml(self):
         try:
-            self.qualified_article_dir = os.path.join(self.static_vars["data_dir"], self.article_dir)
+            self.qualified_article_dir = os.path.join(self.parameters["data_dir"], self.article_dir)
             nxml_files = [file for file in os.listdir(self.qualified_article_dir) if file.endswith(".nxml")]
             if len(nxml_files) != 1:
                 raise ConversionError(message='we need excatly 1 nxml file, no more, no less', doi=self.doi)
@@ -108,15 +108,15 @@ class journal_article():
     def xslt_it(self):
         try:
             doi_file_name = self.doi + '.mw.xml'
-            mw_xml_file = os.path.join(self.static_vars["data_dir"], doi_file_name)
+            mw_xml_file = os.path.join(self.parameters["data_dir"], doi_file_name)
             doi_file_name_pre_slash = doi_file_name.split('/')[0]
             if doi_file_name_pre_slash == doi_file_name:
                 raise ConversionError(message='i think there should be a slash in the doi', doi=self.doi)
-            mw_xml_dir = os.path.join(self.static_vars["data_dir"], doi_file_name_pre_slash)
+            mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
             if not os.path.exists(mw_xml_dir):
                 os.makedirs(mw_xml_dir)
             mw_xml_file_handle = open(mw_xml_file, 'w')
-            call_return = call(['xsltproc', self.static_vars["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle)
+            call_return = call(['xsltproc', self.parameters["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle)
             if call_return == 0: #things went well
                 mw_xml_file_handle.close()
                 self.mw_xml_file = mw_xml_file
@@ -201,9 +201,9 @@ class journal_article():
                         
 
     def push_to_wikisource(self):
-        site = pywikibot.Site(self.static_vars["wikisource_site"], "wikisource")
+        site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         #site = pywikibot.Site('test2', "wikipedia")
-        page = pywikibot.Page(site, self.static_vars["wikisource_basepath"] + self.title)
+        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.title)
         #page = pywikibot.Page(site, 'Wikipedia:DOIUpload/' + self.title)
         comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
@@ -212,10 +212,10 @@ class journal_article():
     
 
     def push_redirect_wikisource(self):
-        site = pywikibot.Site(self.static_vars["wikisource_site"], "wikisource")
-        page = pywikibot.Page(site, self.static_vars["wikisource_basepath"] + self.doi)
+        site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
+        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
         comment = "Making a redirect"
-        redirtext = '#REDIRECT [[' + self.static_vars["wikisource_basepath"] + self.title +']]'
+        redirtext = '#REDIRECT [[' + self.parameters["wikisource_basepath"] + self.title +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
         self.phase['push_redirect_wikisource'] = True
 
