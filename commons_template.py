@@ -9,7 +9,6 @@ def make_datestring(year, month, day):
         datestring += "-%02d" % day  # YYYY-MM-DD
     return datestring
 
-
 def _escape(text):
     for original, replacement in [
         ('=', '{{=}}'),
@@ -25,7 +24,6 @@ def _trim(text):
     return ' '.join(text.split())
 
 def page(metadata, caption):
-    
     article_doi = metadata['doi']
     pmcid = metadata['pmcid']
     pmid = metadata['pmid']
@@ -44,8 +42,6 @@ def page(metadata, caption):
     categories = metadata['article-categories']
 
     mimetype = 'image' #need this for templating
-    
-    
     license_templates = {
         u'http://creativecommons.org/licenses/by/2.0/': '{{cc-by-2.0}}',
         u'http://creativecommons.org/licenses/by-sa/2.0/': '{{cc-by-sa-2.0}}',
@@ -56,7 +52,6 @@ def page(metadata, caption):
         u'http://creativecommons.org/licenses/by/4.0/': '{{cc-by-4.0}}',
         u'http://creativecommons.org/licenses/by-sa/4.0/': '{{cc-by-sa-4.0}}'
     }
-    
     if license_url:
         license_template = license_templates[license_url]
     else:
@@ -64,17 +59,14 @@ def page(metadata, caption):
 
     text = "=={{int:filedesc}}==\n\n"
     text += "{{Information\n"
-    
     if caption:
         description = _escape(caption)
     else:
         description = "%s %s" % (_escape('Media belonging article cited on Wikipedia with DOI:'), _escape(article_doi))
-    
     text += "|Description=\n"
     if len(description.strip()) > 0:
         text+= "{{en|1=%s}}\n" % description
     text += "|Date= %s\n" % make_datestring(article_year, article_month, article_day)
-    
 
     label = ("%s file" % mimetype).capitalize()
     text += "|Source= [%s %s] from " % (article_url, _escape(label))
