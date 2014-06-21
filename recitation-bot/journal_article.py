@@ -18,35 +18,43 @@ import commons_template
 import helpers
 
 class journal_article():
-    '''This class represents a journal article 
-    and its lifecycle to make it to Wikisource.'''
-    def __init__(self, doi, static_vars):
-        '''journal_articles are represented by dois'''
+
+    '''
+    This class represents a journal article
+    (the primary object for this application),
+    and its lifecycle to make it to Wikisource.
+    '''
+
+    def __init__(self, doi, parameters):
+        '''
+        journal_articles are represented by dois
+        '''
         if doi.startswith('http://dx.doi.org/'):
             doi_parts = doi.split('http://dx.doi.org/')
             doi = doi_parts[1] 
         self.doi = doi
-        self.static_vars = static_vars
+        self.parameters = parameters
         #a phase is like, have we downloaded it, have we gotten the pmcid, uploaded the images etc.
         self.phase = defaultdict(bool)
-    
 
+    # @TODO consider deprecating this for extract_metadata()
+    # Already using OAMI method of getting PMID and PMCID
     def get_pmcid(self):
         idpayload = {'ids' : self.doi, 'format': 'json'}
         idconverter = requests.get('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/', params=idpayload)
         records = idconverter.json()['records']
         try:
             if len(records) == 1:
-                #since we are supplying a single doi i believe we should be getting only 1 record
+                # since we are supplying a single doi, assumes we receive only 1 record
                 record = records[0]
             else:
                 raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
-            self.pmcid = record['pmcid'] 
-            self.phase['get_pmcid'] = True           
+            self.pmcid = record['pmcid']
+            self.phase['get_pmcid'] = True
         except:
             raise ConversionError(message='cannot get pmcid',doi=self.doi)
 
-    
+    # @TODO consider including .zip download as well or alternative
     def get_targz(self):
         try:
             archivefile_payload = {'id' : self.pmcid}
@@ -57,7 +65,7 @@ class journal_article():
             archivefile_url = record.oa.records.record.find(format='tgz')['href']
 
             archivefile_name = wget.filename_from_url(archivefile_url)
-            complete_path_targz = os.path.join(self.static_vars["data_dir"], archivefile_name)
+            complete_path_targz = os.path.join(self.parameters["data_dir"], archivefile_name)
             urllib.urlretrieve(archivefile_url, complete_path_targz)
             self.complete_path_targz = complete_path_targz
 
@@ -68,24 +76,22 @@ class journal_article():
         except:
             raise ConversionError(message='could not get the tar.gz file from the pubmed', doi=self.doi)
 
-
     def extract_targz(self):
         try:
             directory_name, file_extension = self.complete_path_targz.split('.tar.gz')
             self.article_dir = directory_name
             tar = tarfile.open(self.complete_path_targz, 'r:gz')
-            tar.extractall(self.static_vars["data_dir"])
+            tar.extractall(self.parameters["data_dir"])
             self.phase['extract_targz'] = True
         except:
             raise ConversionError(message='trouble extracting the targz', doi=self.doi)
-    
 
     def find_nxml(self):
         try:
-            self.qualified_article_dir = os.path.join(self.static_vars["data_dir"], self.article_dir)
+            self.qualified_article_dir = os.path.join(self.parameters["data_dir"], self.article_dir)
             nxml_files = [file for file in os.listdir(self.qualified_article_dir) if file.endswith(".nxml")]
             if len(nxml_files) != 1:
-                raise ConversionError(message='we need excatly 1 nxml file, no more, no less', doi=self.doi)
+                raise ConversionError(message='we need exactly 1 nxml file, no more, no less', doi=self.doi)
             nxml_file = nxml_files[0]
             self.nxml_path = os.path.join(self.qualified_article_dir, nxml_file)
             self.phase['find_nxml'] = True
@@ -93,30 +99,27 @@ class journal_article():
             raise ce
         except:
             raise ConversionError(message='could not traverse the search dierctory for nxml files', doi=self.doi)
-        
+
     def extract_metadata(self):
         self.metadata = pmc_extractor.extract_metadata(self.nxml_path)
-        if not any([self.metadata['article-license-url'],
+        if not any(self.metadata['article-license-url'],
                    self.metadata['article-license-text'],
-                   self.metadata['article-copyright-statement']]):
+                   self.metadata['article-copyright-statement']):
             raise ConversionError(message='no article license', doi=self.doi)
-            
-
         self.phase['extract_metadata'] = True
 
-    
     def xslt_it(self):
         try:
             doi_file_name = self.doi + '.mw.xml'
-            mw_xml_file = os.path.join(self.static_vars["data_dir"], doi_file_name)
+            mw_xml_file = os.path.join(self.parameters["data_dir"], doi_file_name)
             doi_file_name_pre_slash = doi_file_name.split('/')[0]
             if doi_file_name_pre_slash == doi_file_name:
-                raise ConversionError(message='i think there should be a slash in the doi', doi=self.doi)
-            mw_xml_dir = os.path.join(self.static_vars["data_dir"], doi_file_name_pre_slash)
+                raise ConversionError(message='I think there should be a slash in the doi', doi=self.doi)
+            mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
             if not os.path.exists(mw_xml_dir):
                 os.makedirs(mw_xml_dir)
             mw_xml_file_handle = open(mw_xml_file, 'w')
-            call_return = call(['xsltproc', self.static_vars["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle)
+            call_return = call(['xsltproc', self.parameters["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle)
             if call_return == 0: #things went well
                 mw_xml_file_handle.close()
                 self.mw_xml_file = mw_xml_file
@@ -125,8 +128,10 @@ class journal_article():
                 raise ConversionError(message='something went wrong during the xsltprocessing', doi=self.doi)
         except:
             raise ConversionError(message='something went wrong, probably munging the file structure', doi=self.doi)
-    
 
+    # @TODO consider replacing etree with beautifulsoup (bs4), since we already
+    # use bs4 above, should not be additional memory cost to traverse it again.
+    # Alternatively, could replace bs4 with etree for performance.
     def get_mwtext_element(self):
         try:
             tree = etree.parse(self.mw_xml_file)
@@ -137,6 +142,7 @@ class journal_article():
         except:
             raise ConversionError(message='no text element')
 
+    # @TODO same as etree comment just above.
     def get_mwtitle_element(self):
         try:
             tree = etree.parse(self.mw_xml_file)
@@ -147,10 +153,8 @@ class journal_article():
             self.phase['get_mw_title_element'] = True
         except:
             raise ConversionError(message='mw_title_element not found')
-        
 
-
-    def upload_images(self):        
+    def upload_images(self):
         commons = pywikibot.Site('commons', 'commons')
         if not commons.logged_in():
             commons.login()
@@ -168,7 +172,8 @@ class journal_article():
             try:
                 commons.upload(imagepage=image_page, source_filename=qualified_image_location, 
                                comment='Automatic upload of media from: [[doi:' + self.doi+']]',
-                               ignore_warnings=False) #DANGER OF OVERWRITING IF TRUE
+                               ignore_warnings=False)
+                               # "ignore_warnings" means "overwrite" if True
                 self.metadata['images'][image]['uploaded_name'] = harmonized_name
             except pywikibot.exceptions.UploadWarning as warning:
                 warning_string = unicode(warning)
@@ -185,8 +190,7 @@ class journal_article():
                     raise
         self.phase['upload_images'] = True
 
-                
-    def replace_image_names_in_wikitext(self):        
+    def replace_image_names_in_wikitext(self):
         replacing_text = self.wikitext
         for image in self.metadata['images'].iterkeys():
             extensionless_re = r'File:(' + image + r')\|'
@@ -194,31 +198,31 @@ class journal_article():
             replacing_text, occurences = re.subn(extensionless_re, new_file_text, replacing_text)
             if occurences != 1:
                 print occurences, image
-        #print replacing_text
+        # print replacing_text
         self.image_fixed_wikitext = replacing_text
-
         self.phase['replace_image_names_in_wikitext'] = True
-                        
 
     def push_to_wikisource(self):
-        site = pywikibot.Site(self.static_vars["wikisource_site"], "wikisource")
+        site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         #site = pywikibot.Site('test2', "wikipedia")
-        page = pywikibot.Page(site, self.static_vars["wikisource_basepath"] + self.title)
+        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.title)
         #page = pywikibot.Page(site, 'Wikipedia:DOIUpload/' + self.title)
         comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
         self.phase['push_to_wikisource'] = True
-    
 
     def push_redirect_wikisource(self):
-        site = pywikibot.Site(self.static_vars["wikisource_site"], "wikisource")
-        page = pywikibot.Page(site, self.static_vars["wikisource_basepath"] + self.doi)
+        site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
+        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
         comment = "Making a redirect"
-        redirtext = '#REDIRECT [[' + self.static_vars["wikisource_basepath"] + self.title +']]'
+        redirtext = '#REDIRECT [[' + self.parameters["wikisource_basepath"] + self.title +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
         self.phase['push_redirect_wikisource'] = True
 
+    # Calls almost all of the methods above to convert and upload journal article
+    def convert_and_upload(self):
+        self.phase['convert_and_upload'] = True
 
 class ConversionError(Exception):
     def __init__(self, message, doi):
