@@ -6,7 +6,7 @@ setup(
     description='Mediawiki bot to upload academic journal articles.',
     url='https://github.com/wpoa/recitation-bot',
     author='WikiProject Open Access',
-    license='GPLv3+'
+    license='GPLv3+',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
