@@ -20,12 +20,13 @@ import helpers
 class journal_article():
     '''This class represents a journal article 
     and its lifecycle to make it to Wikisource.'''
-    def __init__(self, doi, static_vars):
+    def __init__(self, doi, article_title, static_vars):
         '''journal_articles are represented by dois'''
         if doi.startswith('http://dx.doi.org/'):
             doi_parts = doi.split('http://dx.doi.org/')
             doi = doi_parts[1] 
         self.doi = doi
+        self.article_title = article_title
         self.static_vars = static_vars
         #a phase is like, have we downloaded it, have we gotten the pmcid, uploaded the images etc.
         self.phase = defaultdict(bool)
@@ -76,7 +77,7 @@ class journal_article():
             tar = tarfile.open(self.complete_path_targz, 'r:gz')
             tar.extractall(self.static_vars["data_dir"])
             self.phase['extract_targz'] = True
-        except:
+        except: 
             raise ConversionError(message='trouble extracting the targz', doi=self.doi)
     
 

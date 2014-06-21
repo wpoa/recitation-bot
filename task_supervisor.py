@@ -2,9 +2,19 @@ from journal_article import journal_article
 import os
 import pywikibot
 import shelve
+import json
 
 if __name__ == '__main__':
+    '''For every DOI-article pair in existence it can be one of the following statuses to us:
+    1. previously_done #we've already processed it
+    2. in_progress #it's in our queue to do
+    3. not_doing #we've manually specified not to do this pair
+    4. new_additions #they doi is on use in wikipedia and we have to detect it. 
+    '''
     shelf = shelve.open('journal_shelf', writeback=False)
+    
+
+    not_doing_list = json.load(open('not_doing_list.json', 'r'))
     
     static_vars = {"data_dir" : '/home/notconfusing/workspace/recitation-bot/data',
                        "jats2mw_xsl" : '/home/notconfusing/workspace/JATS-to-Mediawiki/jats-to-mediawiki.xsl',
