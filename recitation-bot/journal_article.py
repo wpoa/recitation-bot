@@ -43,16 +43,13 @@ class journal_article():
         idpayload = {'ids' : self.doi, 'format': 'json'}
         idconverter = requests.get('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/', params=idpayload)
         records = idconverter.json()['records']
-        try:
-            if len(records) == 1:
-                # since we are supplying a single doi, assumes we receive only 1 record
-                record = records[0]
-            else:
-                raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
-            self.pmcid = record['pmcid']
-            self.phase['get_pmcid'] = True
-        except:
-            raise ConversionError(message='cannot get pmcid',doi=self.doi)
+        if len(records) == 1:
+            # since we are supplying a single doi, assumes we receive only 1 record
+            record = records[0]
+        else:
+            raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
+        self.pmcid = record['pmcid']
+        self.phase['get_pmcid'] = True
 
     # @TODO consider including .zip download as well or alternative
     def get_targz(self):
@@ -102,9 +99,9 @@ class journal_article():
 
     def extract_metadata(self):
         self.metadata = pmc_extractor.extract_metadata(self.nxml_path)
-        if not any(self.metadata['article-license-url'],
+        if not any([self.metadata['article-license-url'],
                    self.metadata['article-license-text'],
-                   self.metadata['article-copyright-statement']):
+                   self.metadata['article-copyright-statement']]):
             raise ConversionError(message='no article license', doi=self.doi)
         self.phase['extract_metadata'] = True
 
@@ -142,18 +139,6 @@ class journal_article():
         except:
             raise ConversionError(message='no text element')
 
-    # @TODO same as etree comment just above.
-    def get_mwtitle_element(self):
-        try:
-            tree = etree.parse(self.mw_xml_file)
-            root = tree.getroot()
-            mwtitle = root.find('mw:page/mw:title', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
-            self.title = mwtitle.text
-            self.metadata['title'] = mwtitle.text
-            self.phase['get_mw_title_element'] = True
-        except:
-            raise ConversionError(message='mw_title_element not found')
-
     def upload_images(self):
         commons = pywikibot.Site('commons', 'commons')
         if not commons.logged_in():
@@ -164,7 +149,7 @@ class journal_article():
             qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
             if not os.path.isfile(qualified_image_location):
                 raise ConversionError(message='%s is not a jpg uploadable' % qualified_image_location, doi=self.doi)
-            harmonized_name = helpers.harmonizing_name(image_file, self.title)
+            harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
             #print harmonized_name
             image_page = pywikibot.ImagePage(commons, harmonized_name)
             page_text = commons_template.page(self.metadata, self.metadata['images'][image]['caption'])
@@ -185,7 +170,10 @@ class journal_article():
                     self.metadata['images'][image]['uploaded_name'] = duplicate_name
                 elif warning_string.endswith('already exists.'):
                     self.metadata['images'][image]['uploaded_name'] = harmonized_name
-                    image_page.put(newtext=page_text, comment='Updating descrpition')
+                    #TODO check to see if there is any difference
+                    existing_page_text = image_page.get()
+                    if existing_page_text != page_text:
+                        image_page.put(newtext=page_text, comment='Updating descrpition')
                 else:
                     raise
         self.phase['upload_images'] = True
@@ -204,9 +192,7 @@ class journal_article():
 
     def push_to_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
-        #site = pywikibot.Site('test2', "wikipedia")
-        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.title)
-        #page = pywikibot.Page(site, 'Wikipedia:DOIUpload/' + self.title)
+        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.metadata['article-title'])
         comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
@@ -216,7 +202,7 @@ class journal_article():
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
         comment = "Making a redirect"
-        redirtext = '#REDIRECT [[' + self.parameters["wikisource_basepath"] + self.title +']]'
+        redirtext = '#REDIRECT [[' + self.parameters["wikisource_basepath"] + self.metadata['article-title'] +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
         self.phase['push_redirect_wikisource'] = True
 
