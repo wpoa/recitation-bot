@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     # list of dois to store
     #dois = ['10.1155/S1110724304404033', '10.1186/1742-4690-2-11', '10.1186/1471-2156-10-59', '10.3897/zookeys.324.5827', '10.1371/journal.pone.0012292', '10.1186/1745-6150-1-19', '10.1371/journal.pbio.0020207', '10.1371/journal.pmed.0050045', '10.1371/journal.pgen.0020220', '10.1371/journal.pbio.1000436']
-    dois =['10.3897/BDJ.2.e1019', '10.1186/1471-2148-9-210', u'10.3897/zookeys.364.6109', u'10.3897/zookeys.333.5795']
+    dois =[u'10.3897/BDJ.2.e1019', u'10.1186/1471-2148-9-210', u'10.3897/zookeys.364.6109', u'10.3897/zookeys.333.5795']
     # main loop
     # take dois, instantiate article object
     # under certain conditions, shelf the object, push to wikisource
