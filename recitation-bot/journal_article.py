@@ -192,7 +192,10 @@ class journal_article():
 
     def push_to_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
-        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.metadata['article-title'])
+        self.wikisource_title = self.parameters["wikisource_basepath"] + self.metadata['article-title']
+        if len(self.wikisource_title) > 220:
+                self.wikisource_title = self.wikisource_title[:220]
+        page = pywikibot.Page(site, self.wikisource_title)
         comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
@@ -202,7 +205,7 @@ class journal_article():
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
         comment = "Making a redirect"
-        redirtext = '#REDIRECT [[' + self.parameters["wikisource_basepath"] + self.metadata['article-title'] +']]'
+        redirtext = '#REDIRECT [[' + self.wikisource_title +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
         self.phase['push_redirect_wikisource'] = True
 
