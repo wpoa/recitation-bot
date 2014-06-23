@@ -53,25 +53,23 @@ class journal_article():
 
     # @TODO consider including .zip download as well or alternative
     def get_targz(self):
-        try:
-            archivefile_payload = {'id' : self.pmcid}
-            archivefile_locator = requests.get('http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi', params=archivefile_payload)
-            record = BeautifulSoup(archivefile_locator.content)
+        archivefile_payload = {'id' : self.pmcid}
+        archivefile_locator = requests.get('http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi', params=archivefile_payload)
+        record = BeautifulSoup(archivefile_locator.content)
 
-            # parse response for archive file location
-            archivefile_url = record.oa.records.record.find(format='tgz')['href']
+        # parse response for archive file location
+        archivefile_url = record.oa.records.record.find(format='tgz')['href']
 
-            archivefile_name = wget.filename_from_url(archivefile_url)
-            complete_path_targz = os.path.join(self.parameters["data_dir"], archivefile_name)
-            urllib.urlretrieve(archivefile_url, complete_path_targz)
-            self.complete_path_targz = complete_path_targz
+        archivefile_name = wget.filename_from_url(archivefile_url)
+        complete_path_targz = os.path.join(self.parameters["data_dir"], archivefile_name)
+        urllib.urlretrieve(archivefile_url, complete_path_targz)
+        self.complete_path_targz = complete_path_targz
 
-             # @TODO For some reason, wget hangs and doesn't finish, using
-             # urllib.urlretrieve() instead for this for now.
-             # archivefile = wget.download(archivefileurl, wget.bar_thermometer)
-            self.phase['get_targz'] = True
-        except:
-            raise ConversionError(message='could not get the tar.gz file from the pubmed', doi=self.doi)
+         # @TODO For some reason, wget hangs and doesn't finish, using
+         # urllib.urlretrieve() instead for this for now.
+         # archivefile = wget.download(archivefileurl, wget.bar_thermometer)
+        self.phase['get_targz'] = True
+
 
     def extract_targz(self):
         try:
