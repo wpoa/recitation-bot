@@ -25,7 +25,7 @@ class journal_article():
     and its lifecycle to make it to Wikisource.
     '''
 
-    def __init__(self, doi, parameters):
+    def __init__(self, doi, article, parameters):
         '''
         journal_articles are represented by dois
         '''
@@ -33,6 +33,7 @@ class journal_article():
             doi_parts = doi.split('http://dx.doi.org/')
             doi = doi_parts[1] 
         self.doi = doi
+        self.article = article
         self.parameters = parameters
         #a phase is like, have we downloaded it, have we gotten the pmcid, uploaded the images etc.
         self.phase = defaultdict(bool)

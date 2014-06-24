@@ -1,18 +1,39 @@
 # -*- coding: utf-8 -*-
 
 from journal_article import journal_article
+from detect_in_use_dois import doi_finder
 import os
 import pywikibot
 import shelve
+import threading
+from collections import deque
+import time
+import json
+from sys import stderr
+'''For every DOI-article pair in existence it can be one of the following statuses to us:
+1. previously_done #we've already processed it
+2. in_progress #it's in our queue to do
+3. not_doing #we've manually specified not to do this pair
+4. new_additions #they doi is on use in wikipedia and we have to detect it. 
+'''
 
-if __name__ == '__main__':
-    '''For every DOI-article pair in existence it can be one of the following statuses to us:
-    1. previously_done #we've already processed it
-    2. in_progress #it's in our queue to do
-    3. not_doing #we've manually specified not to do this pair
-    4. new_additions #they doi is on use in wikipedia and we have to detect it. 
-    '''
+def add_jumpers_to_deque(article_deque):
+    while True:    
+        jumpers_file_name = '/data/project/recitation-bot/recitation-bot/jump_the_queue.log'
+        jumpers_file = open(jumpers_file_name,'r')
+        jumpers_contents = jumpers_file.read()
+        jumpers_file.close()
+        open(jumpers_file_name,'w').close() #blank the file
+        for doi_input in jumpers_contents.split('\n'):
+            if doi_input: # check for empty strings
+                article_deque.append({'doi':doi_input,'article':None})
+        time.sleep(1)
 
+def add_detected_to_deque(article_deque):
+	finder = doi_finder(lang='test2wiki', article_deque=article_deque)
+	finder.run_in_loop()
+
+def convert_and_upload(article_deque):
     # creates shelf store for article data (history)
     shelf = shelve.open('journal_shelf', writeback=False)
 
@@ -25,29 +46,47 @@ if __name__ == '__main__':
         "image_extensions": ['jpg', 'jpeg', 'png']
     }
 
-
-
-    # list of dois to store
-    #dois = ['10.1155/S1110724304404033', '10.1186/1742-4690-2-11', '10.1186/1471-2156-10-59', '10.3897/zookeys.324.5827', '10.1371/journal.pone.0012292', '10.1186/1745-6150-1-19', '10.1371/journal.pbio.0020207', '10.1371/journal.pmed.0050045', '10.1371/journal.pgen.0020220', '10.1371/journal.pbio.1000436']
-    dois =[u'10.3897/BDJ.2.e1019', u'10.1186/1471-2148-9-210', u'10.3897/zookeys.364.6109', u'10.3897/zookeys.333.5795']
     # main loop
-    # take dois, instantiate article object
-    # under certain conditions, shelf the object, push to wikisource
-    for doi in dois:
-        if doi not in shelf.keys():
-            print doi
-            ja = journal_article(doi=doi, parameters=parameters)
-            ja.get_pmcid()
-            ja.get_targz()
-            ja.extract_targz()
-            ja.find_nxml()
-            ja.extract_metadata()
-            ja.xslt_it()
-            ja.upload_images()
-            ja.get_mwtext_element()
-            ja.replace_image_names_in_wikitext()
-            ja.push_to_wikisource()
-            ja.push_redirect_wikisource()
-            shelf[doi] = ja
-            shelf.sync()
+    while True:
+        try:
+            doi_article = article_deque.pop()
+            doi = doi_article['doi']
+            article = doi_article['article']
+            if doi not in shelf.keys():
+                stderr.write(doi)
+                #until we can get xslt working
+                '''
+                ja = journal_article(doi=doi, article=article, parameters=parameters)
+                ja.get_pmcid()
+                ja.get_targz()
+                ja.extract_targz()
+                ja.find_nxml()
+                ja.extract_metadata()
+                ja.xslt_it()
+                ja.upload_images()
+                ja.get_mwtext_element()
+                ja.replace_image_names_in_wikitext()
+                ja.push_to_wikisource()
+                ja.push_redirect_wikisource()
+                shelf[doi] = ja
+                shelf.sync()
+                '''
+        except IndexError: #nothing in the deque
+            stderr.write('sleep')
+            time.sleep(5)
     shelf.close()
+
+article_deque = deque()
+jump_producer = threading.Thread(target=add_jumpers_to_deque, kwargs={'article_deque':article_deque})
+detect_producer = threading.Thread(target=add_detected_to_deque, kwargs={'article_deque':article_deque})
+consumer = threading.Thread(target=convert_and_upload, kwargs={'article_deque':article_deque})
+
+print 'starting infinite loops now'
+jump_producer.start()
+detect_producer.start()
+consumer.start()
+
+jump_producer.join()
+detect_producer.join()
+consumer.join()
+print 'finished' #this should never be reached if all loops are suffiicently infinite.

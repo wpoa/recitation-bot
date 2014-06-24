@@ -28,11 +28,12 @@ for field_name in form:
         print field.name
         print " = "
         doi = cgi.escape(repr(field.value))
+        doi_plain = field.value
         print doi
         print "</li>"
         if form['doi'].value:
             dequeue = open('/data/project/recitation-bot/recitation-bot/jump_the_queue.log','a')
-            dequeue.write(doi+'\n')
+            dequeue.write(doi_plain+'\n')
             dequeue.close()
 
 print "</ul>"
