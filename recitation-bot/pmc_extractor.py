@@ -599,7 +599,7 @@ def _get_pmcid(tree):
     for article_id in front.iter('article-id'):
         if article_id.attrib['pub-id-type'] == 'pmc':
             return article_id.text
-        
+
 def _get_pmid(tree):
     """
     Given an ElementTree, returns PubMed Central ID.

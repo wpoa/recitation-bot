@@ -10,15 +10,16 @@ from collections import deque
 import time
 import json
 from sys import stderr
+
 '''For every DOI-article pair in existence it can be one of the following statuses to us:
 1. previously_done #we've already processed it
 2. in_progress #it's in our queue to do
 3. not_doing #we've manually specified not to do this pair
-4. new_additions #they doi is on use in wikipedia and we have to detect it. 
+4. new_additions #the doi is in use on wikipedia and we have to detect it
 '''
 
 def add_jumpers_to_deque(article_deque):
-    while True:    
+    while 1: # True
         jumpers_file_name = '/data/project/recitation-bot/recitation-bot/jump_the_queue.log'
         jumpers_file = open(jumpers_file_name,'r')
         jumpers_contents = jumpers_file.read()
@@ -47,7 +48,7 @@ def convert_and_upload(article_deque):
     }
 
     # main loop
-    while True:
+    while 1: # True
         try:
             doi_article = article_deque.pop()
             doi = doi_article['doi']

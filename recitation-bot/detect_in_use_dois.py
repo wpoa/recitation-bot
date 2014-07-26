@@ -2,10 +2,15 @@ import MySQLdb
 import datetime
 import shelve
 
-
+'''
+A doi_finder object connects to the Wikipedia Replica (MySQL) database,
+provides methods to get lists of DOI-article pairs including filters for
+relevant DOI-article pairs since the last check.
+'''
 class doi_finder():
+    # Connect to database and shelf
     def __init__(self, lang, article_deque):
-        #@TODO make this languag agnostic
+        #@TODO make this language agnostic
         host = lang+'.labsdb'
         db = lang+'_p'
         self.conn = MySQLdb.connect(host=host, db=db, port=3306, read_default_file='~/replica.my.cnf')
@@ -14,6 +19,7 @@ class doi_finder():
         self.shelf = shelve.open('doi_detector_shelf', writeback=False)
         self.check_time = None
 
+    # Get list of DOIs added since the last check_time
     def get_doi_list(self):
         # namespace difference qstring = u'''select page_title, el_to from externallinks left join page on page_id = el_from where page_namespace = 0 and el_index like 'http://org.doi.dx%' '''
         qstring = u'''select page_title, el_to from externallinks left join page on page_id = el_from where el_index like 'http://org.doi.dx%' '''
@@ -24,10 +30,12 @@ class doi_finder():
 
         qstring += u''';'''
         uqstring = qstring.encode('utf-8')
-            
+
         self.cursor.execute(uqstring)
         return self.cursor.fetchall()
 
+    # Find when an article has a new citation with a DOI
+    # Update the shelf with new DOI citations
     def find_new_doi_article_pairs(self):
         curr = self.get_doi_list()
         new_additions = list()
@@ -56,12 +64,11 @@ class doi_finder():
         if new_additions:
             article_deque.extendlefts(new_addition)
             self.shelf.sync()
-    
+
     def run_in_loop(self):
-        while True:
+        while 1: # True
             #print(str(datetime.datetime.now()))
             self.find_new_doi_article_pairs()
-
 
 if __name__ == '__main__':
     from collections import deque

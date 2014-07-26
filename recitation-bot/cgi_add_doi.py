@@ -5,13 +5,13 @@ cgitb.enable()
 
 print "Content-Type: text/html"     # HTML is following
 print                               # blank line, end of headers
-print "<TITLE>jump a doi to the front of the queue</TITLE>"
-print "<H1>jump a doi to the front of the queue</H1>"
+print "<title>jump a doi to the front of the queue</title>"
 #print "who dares enter a doi"
 print "<html>"
 print "<body>"
 
 # standard single line text field
+print "<h1>jump a doi to the front of the queue</h1>"
 print "<form method='post'>"
 print "Enter a doi (don't include 'http://dx.doi.org/'):"
 print "<input type='text' name='doi' value='' />"
