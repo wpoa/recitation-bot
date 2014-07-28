@@ -190,7 +190,7 @@ class journal_article():
                     #TODO check to see if there is any difference
                     existing_page_text = image_page.get()
                     if existing_page_text != page_text:
-                        image_page.put(newtext=page_text, comment='Updating descrpition')
+                        image_page.put(newtext=page_text, comment='Updating description')
                 else:
                     raise
 
