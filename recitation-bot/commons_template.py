@@ -83,7 +83,7 @@ def page(metadata, caption):
     text += "}}\n"
     text += "|Author= %s\n" % _escape(authors)
     text += "|Permission= %s\n" % license_template
-    text += "|Other_fields={{Information field|name=Provenance|value= {{Open Access Media Importer}} }}\n"
+    text += "|Other_fields={{Information field|name=Provenance|value= {{Recitation-bot}} }}\n"
     text += "}}\n\n"
 
     def _capitalize_properly(word):
