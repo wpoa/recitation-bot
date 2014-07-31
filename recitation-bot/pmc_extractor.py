@@ -48,21 +48,20 @@ def _get_image_captions(tree):
     Given an ElementTree returns iamges as a
     dictionary containing, file_name label and caption.
     """
+    fig_captions = defaultdict(dict)
     for fig in tree.iter('fig'):
-        fig_captions = defaultdict(dict)
-        for fig in tree.iter('fig'):
-            graphic = fig.find('graphic')
-            file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
-            label_text = ''
-            label = fig.find('label')
-            if label is not None:
-                label_text = label.text
-                fig_captions[file_name]['label'] = label_text
-            caption = fig.find('caption/p')
-            caption_text = ''
-            if caption is not None:
-                caption_text = _strip_whitespace(''.join(caption.itertext()))
-            fig_captions[file_name]['caption'] = caption_text
+        graphic = fig.find('graphic')
+        file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
+        label_text = ''
+        label = fig.find('label')
+        if label is not None:
+            label_text = label.text
+            fig_captions[file_name]['label'] = label_text
+        caption = fig.find('caption/p')
+        caption_text = ''
+        if caption is not None:
+            caption_text = _strip_whitespace(''.join(caption.itertext()))
+        fig_captions[file_name]['caption'] = caption_text
     return fig_captions
 
 def _get_article_categories(tree):

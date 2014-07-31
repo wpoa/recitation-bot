@@ -1,6 +1,10 @@
 import MySQLdb
 import datetime
 import shelve
+import time
+
+import logging
+logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 '''
 A doi_finder object connects to the Wikipedia Replica (MySQL) database,
@@ -8,9 +12,11 @@ provides methods to get lists of DOI-article pairs including filters for
 relevant DOI-article pairs since the last check.
 '''
 class doi_finder():
+
     # Connect to database and shelf
-    def __init__(self, lang, article_deque):
-        #@TODO make this language agnostic
+    def __init__(self, lang):
+        #@TODO make this languag agnostic
+        logging.debug('querying on lang: %s',lang)
         host = lang+'.labsdb'
         db = lang+'_p'
         self.conn = MySQLdb.connect(host=host, db=db, port=3306, read_default_file='~/replica.my.cnf')
@@ -36,42 +42,38 @@ class doi_finder():
 
     # Find when an article has a new citation with a DOI
     # Update the shelf with new DOI citations
-    def find_new_doi_article_pairs(self):
-        curr = self.get_doi_list()
-        new_additions = list()
-        print 'currently getting', len(curr)
-        curr = curr[:100]
-        for title, doi_str in curr:
-            try:
-                doi = doi_str.split('http://dx.doi.org/')[1]
-            except IndexError:
-                continue
-            doi_article = {'doi':doi,'article':title}
-            if doi not in self.shelf.keys():
-                self.shelf[doi] = [title]
-                new_additions.append(doi_article)
-            else:
-                title_list = self.shelf[doi]
-                if title not in title_list:
-                    title_list.append(title)
-                    self.shelf[doi] = title_list
-                    new_additions.append(doi_article)
-        utc = datetime.datetime.utcnow()
-        self.check_time = utc.strftime('%Y%m%d%H%M%S')
-        print self.check_time
-        print 'len new additions:', len(new_additions)
-        print new_additions[:10]
-        if new_additions:
-            article_deque.extendlefts(new_addition)
-            self.shelf.sync()
-
-    def run_in_loop(self):
+    def find_new_doi_article_pairs(self, article_deque):
         while 1: # True
-            #print(str(datetime.datetime.now()))
-            self.find_new_doi_article_pairs()
+            curr = self.get_doi_list()
+            new_additions = list()
+            logging.info('sql query returned %s items', len(curr))
+            curr = curr[:100]
+            for title, doi_str in curr:
+                try:
+                    doi = doi_str.split('http://dx.doi.org/')[1]
+                except IndexError:
+                    continue
+                doi_article = {'doi':doi,'article':title}
+                if doi not in self.shelf.keys():
+                    self.shelf[doi] = [title]
+                    new_additions.append(doi_article)
+                else:
+                    title_list = self.shelf[doi]
+                    if title not in title_list:
+                        title_list.append(title)
+                        self.shelf[doi] = title_list
+                        new_additions.append(doi_article)
+            utc = datetime.datetime.utcnow()
+            self.check_time = utc.strftime('%Y%m%d%H%M%S')
+            logging.info('found %s new additions:', len(new_additions))
+            if new_additions:
+                self.article_deque.extendleft(new_addition)
+                self.shelf.sync()
+            else:
+                time.sleep(10)
 
 if __name__ == '__main__':
     from collections import deque
     d = deque()
-    getter = doi_finder(lang='enwiki',article_deque=d)
-    getter.run_in_loop()
+    getter = doi_finder(lang='enwiki')
+    getter.find_new_doi_article_pairs(article_deque)

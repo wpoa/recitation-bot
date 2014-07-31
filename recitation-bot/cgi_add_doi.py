@@ -1,5 +1,6 @@
 import cgi
 import cgitb
+import os
 
 cgitb.enable()
 
@@ -19,25 +20,37 @@ print "<input type='submit' value='submit form' />"
 print "</form>"
 form = cgi.FieldStorage()
 #print form
-print "<h2>I will try and upload:</h2>"
-print "<ul>"
 for field_name in form:
     field=form[field_name]
     if field.name == 'doi':
-        print "<li>"
-        print field.name
-        print " = "
-        doi = cgi.escape(repr(field.value))
         doi_plain = field.value
-        print doi
-        print "</li>"
+        doi_safe = cgi.escape(repr(doi_plain))
+        print "<p>%s will be uploaded shortly</p>" % doi_safe
+        url = 'http://tools.wmflabs.org/recitation-bot/' + doi_plain + '.html'
+        print "<p>Follow the upload status at <a href='%s'>%s</a> </p>" % (url, url)
         if form['doi'].value:
             dequeue = open('/data/project/recitation-bot/recitation-bot/jump_the_queue.log','a')
             dequeue.write(doi_plain+'\n')
             dequeue.close()
 
+        waiting_page_path = '/data/project/recitation-bot/public_html/'+doi_plain+'.html'
+        if not os.path.exists(os.path.dirname(waiting_page_path)):
+            os.makedirs(os.path.dirname(waiting_page_path))
+        if os.path.isfile(waiting_page_path):
+            pass #there's nothing to do since its already been uplaoded
+        else:
+            waiting_page = open(waiting_page_path, 'w')
+            waiting_text = r'''<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<title>waiting</title>
+<html>
+<body>
+<p>%s being processed, we have to fetch and crunch a lot of data, long articles can take upto 5 minutes depending on traffic loads</p>
+</body>
+</html>''' % doi_plain
+            waiting_page.write(waiting_text)
+            waiting_page.close()
+
+
 print "</ul>"
-
-
 print "</body>"
 print "</html>"

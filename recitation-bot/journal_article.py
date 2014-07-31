@@ -16,6 +16,9 @@ import ast
 import pmc_extractor
 import commons_template
 import helpers
+import logging
+
+logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 class journal_article():
 
@@ -165,7 +168,10 @@ class journal_article():
             image_file = image + '.jpg'
             qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
             if not os.path.isfile(qualified_image_location):
-                raise ConversionError(message='%s is not a jpg uploadable' % qualified_image_location, doi=self.doi)
+                image_file = image + '.png'
+                qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
+                if not os.path.isfile(qualified_image_location):                
+                    raise ConversionError(message='%s is not a jpg or png uploadable' % qualified_image_location, doi=self.doi)
             harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
             #print harmonized_name
             image_page = pywikibot.ImagePage(commons, harmonized_name)
@@ -176,6 +182,7 @@ class journal_article():
                                comment='Automatic upload of media from: [[doi:' + self.doi+']]',
                                ignore_warnings=False)
                                # "ignore_warnings" means "overwrite" if True
+                logging.info('Uploaded image %s' % image_file)
                 self.metadata['images'][image]['uploaded_name'] = harmonized_name
             except pywikibot.exceptions.UploadWarning as warning:
                 warning_string = unicode(warning)
@@ -184,8 +191,10 @@ class journal_article():
                     duplicate_list = ast.literal_eval(liststring)
                     duplicate_name = duplicate_list[0]
                     print 'duplicate found: ', duplicate_name
+                    logging.info('Duplicate image %s' % image_file)
                     self.metadata['images'][image]['uploaded_name'] = duplicate_name
                 elif warning_string.endswith('already exists.'):
+                    logging.info('Already exists image %s' % image_file)
                     self.metadata['images'][image]['uploaded_name'] = harmonized_name
                     #TODO check to see if there is any difference
                     existing_page_text = image_page.get()
@@ -211,11 +220,11 @@ class journal_article():
 
     def push_to_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
-        self.wikisource_title = self.parameters["wikisource_basepath"] + self.metadata['article-title']
+        self.wikisource_title = self.parameters["wikisource_basepath"] + helpers.title_cleaner(self.metadata['article-title'])
         if len(self.wikisource_title) > 220:
                 self.wikisource_title = self.wikisource_title[:220]
         page = pywikibot.Page(site, self.wikisource_title)
-        comment = "Imported from [[doi:"+self.doi+"]] by recitationbot"
+        comment = "Imported [[doi:"+self.doi+"]] from http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id="+self.pmcid+" by recitation-bot v0.1"
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
 
@@ -230,10 +239,12 @@ class journal_article():
 
         self.phase['push_redirect_wikisource'] = True
 
-    # @TODO call most methods above to convert and upload journal article
-    def convert_and_upload(self):
-
-        self.phase['convert_and_upload'] = True
+    # Returns HTML string for link to uploaded WikiSource article
+    def htmlstr(self):
+        return_string = 'See <a href="https://en.wikisource.org/wiki/%s">%s</a>\n' % (self.wikisource_title, self.wikisource_title)
+        for metadata, val in self.metadata.iteritems():
+            return_string += u'<p>' + unicode(metadata) + u':' + unicode(val) + u'</p>' + u'\n'
+        return return_string
 
 class ConversionError(Exception):
     def __init__(self, message, doi):
