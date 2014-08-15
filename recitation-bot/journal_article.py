@@ -221,8 +221,8 @@ class journal_article():
     def push_to_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         self.wikisource_title = self.parameters["wikisource_basepath"] + helpers.title_cleaner(self.metadata['article-title'])
-        if len(self.wikisource_title) > 220:
-                self.wikisource_title = self.wikisource_title[:220]
+        if len(self.wikisource_title) > 255:
+                self.wikisource_title = self.wikisource_title[:255]
         page = pywikibot.Page(site, self.wikisource_title)
         comment = "Imported [[doi:"+self.doi+"]] from http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id="+self.pmcid+" by recitation-bot v0.1"
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
