@@ -62,7 +62,7 @@ def page(metadata, caption):
     if caption:
         description = _escape(caption)
     else:
-        description = "%s %s" % (_escape('Media belonging article cited on Wikipedia with DOI:'), _escape(article_doi))
+        description = "%s %s" % (_escape('Media belonging to article cited on Wikipedia with DOI:'), _escape(article_doi))
     text += "|Description=\n"
     if len(description.strip()) > 0:
         text+= "{{en|1=%s}}\n" % description
