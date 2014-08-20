@@ -43,6 +43,9 @@ def page(metadata, caption):
 
     mimetype = 'image' #need this for templating
     license_templates = {
+        u'http://creativecommons.org/publicdomain/zero/1.0/': '{{cc-zero}}',
+        u'http://creativecommons.org/licenses/by/1.0/': '{{cc-by-1.0}}',
+        u'http://creativecommons.org/licenses/by-sa/1.0/': '{{cc-by-sa-1.0}}',
         u'http://creativecommons.org/licenses/by/2.0/': '{{cc-by-2.0}}',
         u'http://creativecommons.org/licenses/by-sa/2.0/': '{{cc-by-sa-2.0}}',
         u'http://creativecommons.org/licenses/by/2.5/': '{{cc-by-2.5}}',
@@ -62,7 +65,7 @@ def page(metadata, caption):
     if caption:
         description = _escape(caption)
     else:
-        description = "%s %s" % (_escape('Media belonging article cited on Wikipedia with DOI:'), _escape(article_doi))
+        description = "%s %s" % (_escape('Media belonging to article cited on Wikipedia with DOI:'), _escape(article_doi))
     text += "|Description=\n"
     if len(description.strip()) > 0:
         text+= "{{en|1=%s}}\n" % description
