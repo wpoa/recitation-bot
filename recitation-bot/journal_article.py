@@ -159,19 +159,27 @@ class journal_article():
         except:
             raise ConversionError(message='no text element')
 
+
     def upload_images(self):
+
+        def find_right_extension(image):
+            '''this is a helper to get determine what extension to use'''
+            for extension in ['.jpg','.png','.jpeg','.JPEG', '.PNG', '.tif', '.tiff', '.TIF', '.TIFF', '.svg', '.SVG']:
+                image_file = image + extension
+                qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
+                if os.path.isfile(qualified_image_location):
+                    return image_file, qualified_image_location
+        #this means no valid extension was found and returned
+                raise ConversionError(message='%s is not a jpg or png uploadable' % qualified_image_location, doi=self.doi)
+
         commons = pywikibot.Site('commons', 'commons')
         if not commons.logged_in():
             commons.login()
-        #commons = pywikibot.Site('test2', 'wikipedia')
+
         for image in self.metadata['images'].iterkeys():
-            image_file = image + '.jpg'
-            qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
-            if not os.path.isfile(qualified_image_location):
-                image_file = image + '.png'
-                qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
-                if not os.path.isfile(qualified_image_location):                
-                    raise ConversionError(message='%s is not a jpg or png uploadable' % qualified_image_location, doi=self.doi)
+
+            image_file, qualified_image_location = find_right_extension(image)
+            
             harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
             #print harmonized_name
             image_page = pywikibot.ImagePage(commons, harmonized_name)
