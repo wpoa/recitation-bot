@@ -14,12 +14,18 @@ import logging
 
 logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
+faillog = logging.getLogger('faillog')
+failhandler = logging.FileHandler('/data/project/recitation-bot/public_html/faillog.html')
+failhandler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+faillog.addHandler(failhandler)
+
 '''For every DOI-article pair in existence it can be one of the following statuses to us:
 1. previously_done #we've already processed it
 2. in_progress #it's in our queue to do
 3. not_doing #we've manually specified not to do this pair
 4. new_additions #the doi is in use on wikipedia and we have to detect it
 '''
+
 def add_jumpers_to_deque(article_deque):
     logging.debug('jumpers thread launched')
     while 1: # True
@@ -33,7 +39,9 @@ def add_jumpers_to_deque(article_deque):
         logging.info('%s items found from the jumper queue', len(jumper_lines)) 
         for doi_input in jumper_lines:
             if doi_input: # check for empty strings
-                article_deque.append({'doi':doi_input,'article':None})
+                doi, reupload_text = doi_input.split('\t')
+                reupload = True if reupload_text == 'reupload_on' else False 
+                article_deque.append({'doi':doi,'reupload':reupload,'article':None})
         time.sleep(10)
 
 def add_detected_to_deque(article_deque):
@@ -57,6 +65,10 @@ def report_status(doi, status, success):
     waiting_page.write(waiting_text.encode('utf-8'))
     waiting_page.close()
 
+    #log off all the failures
+    if not success:
+        faillog.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status) )
+
 
 
 def convert_and_upload(article_deque):
@@ -77,10 +89,11 @@ def convert_and_upload(article_deque):
         try:
             doi_article = article_deque.pop()
             doi = doi_article['doi']
-            logging.info('working on doi %s' % doi)
+            reupload = doi_article['reupload']
+            logging.info('working on doi %s and reupload was %s' % (str(doi), str(reupload)))
             article = doi_article['article']
             logging.debug('associated article %s' % article)
-            if doi not in shelf.keys():
+            if doi not in shelf.keys() or reupload:
                 logging.info('doi %s was not in shelf' % doi)
                 try:
                     ja = journal_article(doi=doi, article=article, parameters=parameters)
