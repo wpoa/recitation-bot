@@ -67,7 +67,8 @@ def report_status(doi, status, success):
 
     #log off all the failures
     if not success:
-        faillog.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status) )
+        logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status) )
+        faillog.info('DOI: %s \nFAIL MESSAGE:%s \n\n' % (doi, status) )
 
 
 
@@ -136,4 +137,4 @@ logging.debug('all threads started')
 jump_producer.join()
 detect_producer.join()
 consumer.join()
-print 'finished' #this should never be reached if all loops are suffiicently infinite.
+print('finished') #this should never be reached if all loops are suffiicently infinite.
