@@ -162,55 +162,48 @@ class journal_article():
 
 
     def upload_images(self):
-
-        def find_right_extension(image):
-            '''this is a helper to get determine what extension to use'''
-            for extension in ['.jpg','.png','.jpeg','.JPEG', '.PNG', '.tif', '.tiff', '.TIF', '.TIFF', '.svg', '.SVG']:
-                image_file = image + extension
-                qualified_image_location = os.path.join(self.qualified_article_dir, image_file)
-                if os.path.isfile(qualified_image_location):
-                    return image_file, qualified_image_location
-        #this means no valid extension was found and returned
-                raise ConversionError(message='%s is not a jpg or png uploadable' % qualified_image_location, doi=self.doi)
-
         commons = pywikibot.Site('commons', 'commons')
         if not commons.logged_in():
             commons.login()
-
-        for image in self.metadata['images'].iterkeys():
-
-            image_file, qualified_image_location = find_right_extension(image)
             
-            harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
-            #print harmonized_name
-            image_page = pywikibot.ImagePage(commons, harmonized_name)
-            page_text = commons_template.page(self.metadata, self.metadata['images'][image]['caption'])
-            image_page._text = page_text
-            try:
-                commons.upload(imagepage=image_page, source_filename=qualified_image_location, 
-                               comment='Automatic upload of media from: [[doi:' + self.doi+']]',
-                               ignore_warnings=False)
-                               # "ignore_warnings" means "overwrite" if True
-                logging.info('Uploaded image %s' % image_file)
-                self.metadata['images'][image]['uploaded_name'] = harmonized_name
-            except pywikibot.exceptions.UploadWarning as warning:
-                warning_string = unicode(warning)
-                if warning_string.startswith('Uploaded file is a duplicate of '):
-                    liststring = warning_string.split('Uploaded file is a duplicate of ')[1][:-1]
-                    duplicate_list = ast.literal_eval(liststring)
-                    duplicate_name = duplicate_list[0]
-                    print 'duplicate found: ', duplicate_name
-                    logging.info('Duplicate image %s' % image_file)
-                    self.metadata['images'][image]['uploaded_name'] = duplicate_name
-                elif warning_string.endswith('already exists.'):
-                    logging.info('Already exists image %s' % image_file)
+        #TODO do the supplements as well
+        logging.info(self.metadata['images'].keys())
+        return
+
+        for image in self.metadata['images']:
+            image_file, qualified_image_location = helpers.find_right_extension(image, self.qualified_article_dir)
+            
+            if image_file: #we found a valid image file
+                harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
+                #print harmonized_name
+                image_page = pywikibot.ImagePage(commons, harmonized_name)
+                page_text = commons_template.page(self.metadata, self.metadata['images'][image]['caption'])
+                image_page._text = page_text
+                try:
+                    commons.upload(imagepage=image_page, source_filename=qualified_image_location, 
+                                   comment='Automatic upload of media from: [[doi:' + self.doi+']]',
+                                   ignore_warnings=False)
+                                   # "ignore_warnings" means "overwrite" if True
+                    logging.info('Uploaded image %s' % image_file)
                     self.metadata['images'][image]['uploaded_name'] = harmonized_name
-                    #TODO check to see if there is any difference
-                    existing_page_text = image_page.get()
-                    if existing_page_text != page_text:
-                        image_page.put(newtext=page_text, comment='Updating description')
-                else:
-                    raise
+                except pywikibot.exceptions.UploadWarning as warning:
+                    warning_string = unicode(warning)
+                    if warning_string.startswith('Uploaded file is a duplicate of '):
+                        liststring = warning_string.split('Uploaded file is a duplicate of ')[1][:-1]
+                        duplicate_list = ast.literal_eval(liststring)
+                        duplicate_name = duplicate_list[0]
+                        print 'duplicate found: ', duplicate_name
+                        logging.info('Duplicate image %s' % image_file)
+                        self.metadata['images'][image]['uploaded_name'] = duplicate_name
+                    elif warning_string.endswith('already exists.'):
+                        logging.info('Already exists image %s' % image_file)
+                        self.metadata['images'][image]['uploaded_name'] = harmonized_name
+                        #TODO check to see if there is any difference
+                        existing_page_text = image_page.get()
+                        if existing_page_text != page_text:
+                            image_page.put(newtext=page_text, comment='Updating description')
+                    else:
+                        raise
 
         self.phase['upload_images'] = True
 
