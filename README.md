@@ -23,8 +23,20 @@ Entry points
 + `jump_the_queue.py` is a producer that is a webserver that takes immediate requests that go on the front of the dequeue
 
 
+# Troubleshooting
+---------------
+## EOFError on commons.login()
+--------
+delete the cookie pywikibot.lwp in the ~/.pywikibot folder. then run something like
+source env/bin/activate
+import pywikibot
+commons = pywikibot.Site('commons','commons')
+commons.login()
+enws = pywikibot.Site('en','wikisource')
+enws.login()
 
-
+and you should get a new cookie that will work.
+you might have gotten logged out for a number of reasons including the bot being blocked.
 
 License
 -------

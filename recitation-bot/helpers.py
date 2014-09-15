@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
+import logging
+
+logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 #want to make the name commons-compatible in the way that OAMI does
 def harmonizing_name(image_name, article_title):
@@ -35,10 +38,15 @@ def title_cleaner(article_title):
 
 def find_right_extension(image, qualified_article_dir):
     '''this is a helper to get determine what extension to use'''
-    for extension in ['.jpg','.png','.jpeg', 'JPG', '.JPEG', '.PNG', '.tif', '.tiff', '.TIF', '.TIFF', '.svg', '.SVG']:
-        image_file = image + extension
+    EXTENSIONS = ['jpg', 'png','jpeg', 'JPG', 'JPEG', 'Jpeg', 'PNG', 'tif', 'tiff', 'TIF', 'TIFF', 'svg', 'SVG']
+    #first check if we were give an image file as is the case for supplemental images
+    if image.split('.')[-1] in EXTENSIONS:
+        qualified_image_location = os.path.join(qualified_article_dir, image)
+        if os.path.isfile(qualified_image_location):
+            return image, qualified_image_location
+    for extension in EXTENSIONS:
+        image_file = image + '.' + extension
         qualified_image_location = os.path.join(qualified_article_dir, image_file)
-        print(qualified_image_location)
         if os.path.isfile(qualified_image_location):
             return image_file, qualified_image_location
         else:

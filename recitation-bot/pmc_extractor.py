@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/u`sr/bin/env python
 # -*- coding: utf-8 -*-
 #all credits to https://github.com/wpoa/open-access-media-importer/
 
@@ -31,7 +31,7 @@ def extract_metadata(target_nxml):
     metadata['image_captions'] = _get_image_captions(tree)
     metadata['supplement_captions'] = _get_supplementary_captions(tree)
     metadata['images'] = dict(metadata['image_captions'].items() + metadata['supplement_captions'].items() )
-    #metadata['supplementary-materials'] = _get_supplementary_materials(tree)
+    metadata['supplementary-materials'] = _get_supplementary_materials(tree)
 
     return metadata
 
