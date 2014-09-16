@@ -220,9 +220,9 @@ class journal_article():
             extensionless_re = r'File:(' + image + r')\|'
             try:
                 new_file_text = r'File:' + self.metadata['images'][image]['uploaded_name'] + r'|'
-                replacing_text, occurences = re.subn(extensionless_re, new_file_text, replacing_text)
-                if occurences != 1:
-                    print occurences, image
+                replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
+                if occurrences != 1:
+                    print occurrences, image
                     # print replacing_text
             except KeyError:
                 #the file may not have been uploaded and thus not have an uploaded name
@@ -237,13 +237,13 @@ class journal_article():
 
     def replace_supplementary_material_links_in_wikitext(self):
         replacing_text = self.wikitext
-        for material in self.metadata['supplementary-materials'].iterkeys():
-            extensionless_re = r'[[File:(' + material['href'] + r').*?]]'
+        for material in self.metadata['supplementary-materials']:
+            extensionless_re = r'\[\[File:(' + material['href'] + r').*?\]\]'
             try:
-                new_file_text = r'[' + material['url'] + r']'
-                replacing_text, occurences = re.subn(extensionless_re, new_file_text, replacing_text)
-                if occurences != 1:
-                    print occurences, image
+                new_file_text = r'[' + material['url'] + r' ' + material['href']  + r']'
+                replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
+                if occurrences != 1:
+                    print occurrences, material
                     # print replacing_text
             except KeyError:
                 continue #on to the next image
