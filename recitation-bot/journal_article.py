@@ -237,7 +237,7 @@ class journal_article():
 
     def replace_supplementary_material_links_in_wikitext(self):
         replacing_text = self.wikitext
-        for material in self.metadata['supplementary_materials'].iterkeys():
+        for material in self.metadata['supplementary-materials'].iterkeys():
             extensionless_re = r'[[File:(' + material['href'] + r').*?]]'
             try:
                 new_file_text = r'[' + material['url'] + r']'
