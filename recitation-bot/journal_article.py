@@ -172,14 +172,14 @@ class journal_article():
         commons = pywikibot.Site('commons', 'commons')
         if not commons.logged_in():
             commons.login()
-            
+
         #TODO do the supplements as well
 
         for image in self.metadata['images']:
             image_file, qualified_image_location = helpers.find_right_extension(image, self.qualified_article_dir)
-            
+
             logging.info(image_file)
-            
+
             if image_file: #we found a valid image file
                     harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
                     #print harmonized_name
@@ -220,9 +220,9 @@ class journal_article():
             extensionless_re = r'File:(' + image + r')\|'
             try:
                 new_file_text = r'File:' + self.metadata['images'][image]['uploaded_name'] + r'|'
-                replacing_text, occurences = re.subn(extensionless_re, new_file_text, replacing_text)
-                if occurences != 1:
-                    print occurences, image
+                replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
+                if occurrences != 1:
+                    print occurrences, image
                     # print replacing_text
             except KeyError:
                 #the file may not have been uploaded and thus not have an uploaded name
@@ -232,8 +232,25 @@ class journal_article():
             self.image_fixed_wikitext = replacing_text
         else:
             self.image_fixed_wikitext = self.wikitext
-        
+
         self.phase['replace_image_names_in_wikitext'] = True
+
+    def replace_supplementary_material_links_in_wikitext(self):
+        replacing_text = self.image_fixed_wikitext
+        for material in self.metadata['supplementary-materials']:
+            extensionless_re = r'\[\[File:(' + material['href'] + r').*?\]\]'
+            try:
+                new_file_text = r'[' + material['url'] + r' ' + material['href']  + r']'
+                replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
+                if occurrences != 1:
+                    print occurrences, material
+                    # print replacing_text
+            except KeyError:
+                continue #on to the next image
+        # replace the text
+        self.image_fixed_wikitext = replacing_text
+
+        self.phase['replace_supplementary_material_links_in_wikitext'] = True
 
     def push_to_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")

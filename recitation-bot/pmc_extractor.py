@@ -603,12 +603,14 @@ def _get_supplementary_material(tree, sup):
         try:
             result['mimetype'] = media.attrib['mimetype']
             result['mime-subtype'] = media.attrib['mime-subtype']
+            result['href'] = media.attrib['{http://www.w3.org/1999/xlink}href']
         except KeyError:
             result['mimetype'] = ''
             result['mime-subtype'] = ''
+            result['href'] = ''
         result['url'] = _get_supplementary_material_url(
             _get_pmcid(tree),
-            media.attrib['{http://www.w3.org/1999/xlink}href']
+            result['href']
         )
         return result
 

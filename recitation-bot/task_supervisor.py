@@ -107,8 +107,9 @@ def convert_and_upload(article_deque):
                     ja.upload_images()
                     ja.get_mwtext_element()
                     ja.replace_image_names_in_wikitext()
+                    ja.replace_supplementary_material_links_in_wikitext()
                     ja.push_to_wikisource()
-                    ja.push_redirect_wikisource()            
+                    ja.push_redirect_wikisource()
                     shelf[doi] = ja
                     shelf.sync()
                     report_status(doi, ja.htmlstr(), success=True)
