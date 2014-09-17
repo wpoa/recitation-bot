@@ -236,7 +236,7 @@ class journal_article():
         self.phase['replace_image_names_in_wikitext'] = True
 
     def replace_supplementary_material_links_in_wikitext(self):
-        replacing_text = self.wikitext
+        replacing_text = self.image_fixed_wikitext
         for material in self.metadata['supplementary-materials']:
             extensionless_re = r'\[\[File:(' + material['href'] + r').*?\]\]'
             try:
