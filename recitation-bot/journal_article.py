@@ -284,7 +284,7 @@ class journal_article():
         lang = self.parameters["wikisource_site"]
         base = self.parameters["wikisource_basepath"]
         doi_end = self.doi
-        https = "https://%s.wikisource.org/%s%s" % (lang, base, doi_end)
+        https = "https://%s.wikisource.org/wiki/%s%s" % (lang, base, doi_end)
         return https
         
 
