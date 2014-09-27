@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from journal_article import journal_article
+import twython_access
 from detect_in_use_dois import doi_finder
 import os
 import pywikibot
@@ -49,7 +50,7 @@ def add_detected_to_deque(article_deque):
     finder = doi_finder(lang='test2wiki')
     finder.find_new_doi_article_pairs(article_deque)
 
-def report_status(doi, status, success):
+def report_status(doi, ja, status_msg, success):
     success_str = 'succeeded' if success else 'failed'
     waiting_page_path = '/data/project/recitation-bot/public_html/'+doi+'.html'
     waiting_page = open(waiting_page_path, 'w')
@@ -61,14 +62,16 @@ def report_status(doi, status, success):
 <p>success: %s </p>
 <p>%s</p>
 </body>
-</html>''' % (doi, success_str, status)
+</html>''' % (doi, success_str, status_msg)
     waiting_page.write(waiting_text.encode('utf-8'))
     waiting_page.close()
 
     #log off all the failures
+    if success:
+        twython_access.update_status(ja)
     if not success:
-        logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status) )
-        faillog.info('DOI: %s \nFAIL MESSAGE:%s \n\n' % (doi, status) )
+        logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status_msg) )
+        faillog.info('DOI: %s \nFAIL MESSAGE:%s \n\n' % (doi, status_msg) )
 
 
 
@@ -112,11 +115,11 @@ def convert_and_upload(article_deque):
                     ja.push_redirect_wikisource()
                     shelf[doi] = ja
                     shelf.sync()
-                    report_status(doi, ja.htmlstr(), success=True)
+                    report_status(doi, ja, ja.htmlstr(), success=True)
                 except Exception as e:
                     logging.exception(e)
                     logging.debug(e)
-                    report_status(doi, str(e), success=False)
+                    report_status(doi, ja, str(e), success=False)
             else:
                 logging.info('doi %s was in shelf' % doi)
         except IndexError: #nothing in the deque

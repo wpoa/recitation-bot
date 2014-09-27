@@ -273,6 +273,11 @@ class journal_article():
 
         self.phase['push_redirect_wikisource'] = True
 
+
+    def urlstr(self):
+        https = "https://en.wikisource.org/wiki/%s" % self.wikisource_title
+        safe = https.replace(' ','_')
+        return safe
     # Returns HTML string for link to uploaded WikiSource article
     def htmlstr(self):
         return_string = 'See <a href="https://en.wikisource.org/wiki/%s">%s</a>\n' % (self.wikisource_title, self.wikisource_title)
