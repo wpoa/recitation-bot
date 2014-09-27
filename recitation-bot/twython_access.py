@@ -12,7 +12,6 @@ twitter.verify_credentials()
 
 def update_status(ja):
     def maketwstr(ja, title_len):
-        # 140 chars minus 33 in the static text minus 23 in the https str minus some future proof saftey = 70
         title = '"' + ja.metadata['article-title'][:title_len] + u'…' + '"'
         doiurl = ja.metadata.doiurl()
         try:
