@@ -11,9 +11,22 @@ twitter = Twython(APP_KEY, APP_SECRET,
 twitter.verify_credentials()
 
 def update_status(ja):
-    twitterstr = "Open Access article: "
-    twitterstr += ja.metadata['article-title'][:75] #Hopefully this will keep it undeer 140 characters but it might not if there's lots of unicode
-    twitterstr += "... uploaded. " 
-    twitterstr += ja.urlstr()
-    logging.info(twitterstr)
-    twitter.update_status(status=twitterstr)
+    def maketwstr(ja, title_len):
+        # 140 chars minus 33 in the static text minus 23 in the https str minus some future proof saftey = 70
+        title = '"' + ja.metadata['article-title'][:title_len] + u'…' + '"'
+        doiurl = ja.metadata.doiurl()
+        try:
+            hashtag = ja.metadata['article-categories'][0].split(' ')[0]
+        except:
+            hashtag = '#biology'
+        
+        twitterstr = '%s uploaded %s %s #openaccess' % (title, doiurl, hashtag) 
+        return twitterstr
+    for title_len in [82, 80, 75, 70, 65, 60, 55, 50, 45, 40]:
+        twitterstr = maketwstr(ja, title_len)
+        logging.info('twitterstr' + twitterstr)
+        try:
+            twitter.update_status(status=twitterstr)
+            break
+        except:
+            continue
