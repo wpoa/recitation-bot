@@ -15,7 +15,7 @@ def update_status(ja):
         title = '"' + ja.metadata['article-title'][:title_len] + u'…' + '"'
         doiurl = ja.metadata.doiurl()
 
-        twitterstr = '%s uploaded %s #openaccess' % (title, doiurl) 
+        twitterstr = '%s uploaded to %s #openaccess' % (title, doiurl) 
         return twitterstr
     for title_len in [82, 80, 75, 70, 65, 60, 55, 50, 45, 40]:
         twitterstr = maketwstr(ja, title_len)
