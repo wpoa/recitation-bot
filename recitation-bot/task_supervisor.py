@@ -71,7 +71,7 @@ def report_status(doi, ja, status_msg, success):
         twython_access.update_status(ja)
     if not success:
         logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status_msg) )
-        faillog.info('DOI: %s \nFAIL MESSAGE:%s \n\n' % (doi, status_msg) )
+        faillog.info('DOI: %s <br />\nFAIL MESSAGE:%s <br /><br />\n' % (doi, status_msg) )
 
 
 

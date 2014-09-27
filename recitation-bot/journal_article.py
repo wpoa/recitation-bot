@@ -279,6 +279,15 @@ class journal_article():
         safe = https.replace(' ','_')
         return safe
     # Returns HTML string for link to uploaded WikiSource article
+
+    def doiurl(self):
+        lang = self.parameters["wikisource_site"]
+        base = self.parameters["wikisource_basepath"]
+        doi_end = self.doi
+        https = "https://%s.wikisource.org/%s%s" % (lang, base, doi_end)
+        return https
+        
+
     def htmlstr(self):
         return_string = 'See <a href="https://en.wikisource.org/wiki/%s">%s</a>\n' % (self.wikisource_title, self.wikisource_title)
         for metadata, val in self.metadata.iteritems():
