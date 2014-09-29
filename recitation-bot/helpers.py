@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import logging
+import requests
 
 logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -53,3 +54,18 @@ def find_right_extension(image, qualified_article_dir):
             continue
 #this means no valid extension was found and returned
     return False, False #two falses so we don't break a caller expecting muliple assignment return
+
+def find_file_in_commons(filename):
+    # Use mediawiki search api to find file with unique string (doi href)
+    results = requests.get('https://commons.wikimedia.org/w/api.php?' +
+                           'action=query' +
+                           '&list=search' +
+                           '&srnamespace=6' +
+                           '&prop=imageinfo' +
+                           '&srsearch=' + filename +
+                           '&srlimit=1' +
+                           '&format=json')
+    if results.json()[u'query'][u'searchinfo'][u'totalhits'] == 1:
+        return results.json()[u'query'][u'search'][0][u'title']
+    else:
+        return False
