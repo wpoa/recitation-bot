@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from twitter_secrets import APP_KEY, APP_SECRET, OAUTH_TOKEN, OAUTH_TOKEN_SECRET
 from twython import Twython
 import logging
@@ -12,14 +13,19 @@ twitter.verify_credentials()
 
 def update_status(ja):
     def maketwstr(ja, title_len):
-        title = '"' + ja.metadata['article-title'][:title_len] + u'…' + '"'
-        doiurl = ja.metadata.doiurl()
+        elipses = ''
+        raw_tit = ja.metadata['article-title']
+        if len(raw_tit) >= title_len:
+            elipses = u'…'
+        title = '"' + ja.metadata['article-title'][:title_len] + elipses + '"'
+        doiurl = ja.doiurl()
+        '''
         try:
-            hashtag = ja.metadata['article-categories'][0].split(' ')[0]
+            hashtag = '#' + ja.metadata['article-categories'][0].split(' ')[0]
         except:
             hashtag = '#biology'
-        
-        twitterstr = '%s uploaded %s %s #openaccess' % (title, doiurl, hashtag) 
+        '''
+        twitterstr = '%s uploaded %s #openaccess' % (title, doiurl) 
         return twitterstr
     for title_len in [82, 80, 75, 70, 65, 60, 55, 50, 45, 40]:
         twitterstr = maketwstr(ja, title_len)
