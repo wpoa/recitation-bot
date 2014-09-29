@@ -205,10 +205,12 @@ class journal_article():
                         elif warning_string.endswith('already exists.'):
                             logging.info('Already exists image %s' % image_file)
                             self.metadata['images'][image]['uploaded_name'] = harmonized_name
-                            #TODO check to see if there is any difference
+                            '''
+                            #I thought this would be good because it would allow new descriptions, however people were complaining that it was overwriting their categorization, which was true. So until we have more time to inspect categories, once we've uploaded a description it won't be easy to programmitcally change it.
                             existing_page_text = image_page.get()
                             if existing_page_text != page_text:
                                 image_page.put(newtext=page_text, comment='Updating description')
+                            '''
                         else:
                             raise
 
@@ -272,7 +274,6 @@ class journal_article():
         self.wiki_link = page.title(asLink=True)
 
         self.phase['push_to_wikisource'] = True
-
     def push_redirect_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
