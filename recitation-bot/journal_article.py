@@ -240,7 +240,16 @@ class journal_article():
         for material in self.metadata['supplementary-materials']:
             extensionless_re = r'\[\[File:(' + material['href'] + r').*?\]\]'
             try:
-                new_file_text = r'[' + material['url'] + r' ' + material['href']  + r']'
+                # Check if this is an OAMI-uploaded file on commons, or not
+                href_no_extension = os.path.splitext(material['href'])[0]
+                found_file = helpers.find_file_in_commons(href_no_extension)
+                if found_file:
+                    # Use commons file instead of external URL
+                    new_file_text = r'[[' + found_file + r']]'
+                else:
+                    # Use external URL to PMC file
+                    new_file_text = r'[' + material['url'] + r' ' + material['href']  + r']'
+
                 replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
                 if occurrences != 1:
                     print occurrences, material
@@ -286,7 +295,6 @@ class journal_article():
         doi_end = self.doi
         https = "https://%s.wikisource.org/%s%s" % (lang, base, doi_end)
         return https
-        
 
     def htmlstr(self):
         return_string = 'See <a href="https://en.wikisource.org/wiki/%s">%s</a>\n' % (self.wikisource_title, self.wikisource_title)
