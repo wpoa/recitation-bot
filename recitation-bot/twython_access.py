@@ -20,14 +20,15 @@ def update_status(ja):
         title = '"' + ja.metadata['article-title'][:title_len] + elipses + '"'
         doiurl = ja.doiurl()
         '''
+        #we could add hashtags based categories, but it had issuses so just going to leave it for now
         try:
             hashtag = '#' + ja.metadata['article-categories'][0].split(' ')[0]
         except:
             hashtag = '#biology'
         '''
-        twitterstr = '%s uploaded %s #openaccess' % (title, doiurl) 
+        twitterstr = '%s uploaded to %s #openaccess' % (title, doiurl) 
         return twitterstr
-    for title_len in [82, 80, 75, 70, 65, 60, 55, 50, 45, 40]:
+    for title_len in [82, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20]:
         twitterstr = maketwstr(ja, title_len)
         logging.info('twitterstr' + twitterstr)
         try:
