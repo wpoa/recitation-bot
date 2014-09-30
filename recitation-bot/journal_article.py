@@ -18,6 +18,7 @@ import pmc_extractor
 import commons_template
 import helpers
 import logging
+import time
 #import mwparserfromhell
 
 logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -49,8 +50,16 @@ class journal_article():
     # Already using OAMI method of getting PMID and PMCID
     def get_pmcid(self):
         idpayload = {'ids' : self.doi, 'format': 'json'}
-        idconverter = requests.get('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/', params=idpayload)
-        records = idconverter.json()['records']
+        reachable = False
+        for retries in range(5):
+            try:
+                idconverter = requests.get('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/', params=idpayload)
+                records = idconverter.json()['records']
+                reachable = True
+            except ValueError as e:
+                time.sleep(2)
+        if not reachable:
+            raise ConversionError(message='usually this is because PMCs API has gone down. Try clicking this URL to see: <br /> <a href="http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=%s&format=json">API link</a>' % self.doi  ,doi=self.doi)
         if len(records) == 1:
             # since we are supplying a single doi, assumes we receive only 1 record
             record = records[0]
@@ -112,7 +121,7 @@ class journal_article():
 
     def extract_metadata(self):
         self.metadata = pmc_extractor.extract_metadata(self.nxml_path)
-        logging.info(str(self.metadata))
+        #logging.info(str(self.metadata))
         if not any([self.metadata['article-license-url'],
                    self.metadata['article-license-text'],
                    self.metadata['article-copyright-statement']]):

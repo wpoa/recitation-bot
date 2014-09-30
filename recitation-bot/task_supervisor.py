@@ -12,6 +12,7 @@ import time
 import json
 from sys import stderr
 import logging
+import ast
 
 logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -40,8 +41,8 @@ def add_jumpers_to_deque(article_deque):
         logging.info('%s items found from the jumper queue', len(jumper_lines)) 
         for doi_input in jumper_lines:
             if doi_input: # check for empty strings
-                doi, reupload_text = doi_input.split('\t')
-                reupload = True if reupload_text == 'reupload_on' else False 
+                doi, reupload_list_str = doi_input.split('\t')
+                reupload = ast.literal_eval(reupload_list_str) 
                 article_deque.append({'doi':doi,'reupload':reupload,'article':None})
         time.sleep(10)
 
@@ -76,6 +77,36 @@ def report_status(doi, ja, status_msg, success):
 
 
 def convert_and_upload(article_deque):
+
+    def process_journal_article(prev_ja, curr_ja, text_only, shelf, doi):
+        try:
+            curr_ja.get_pmcid()
+            curr_ja.get_targz()
+            curr_ja.extract_targz()
+            curr_ja.find_nxml()
+            curr_ja.extract_metadata()
+            curr_ja.xslt_it()
+            
+            logging.info('text_only?'+str(text_only))
+            if not text_only:
+                curr_ja.upload_images()
+            else:
+                #is this dangerous brain surgery? im not sure.
+                curr_ja.metadata['images'] = prev_ja.metadata['images']
+            
+            curr_ja.get_mwtext_element()
+            curr_ja.replace_image_names_in_wikitext()
+            curr_ja.replace_supplementary_material_links_in_wikitext()
+            curr_ja.push_to_wikisource()
+            curr_ja.push_redirect_wikisource()
+            shelf[doi] = curr_ja
+            shelf.sync()
+            report_status(doi, curr_ja, curr_ja.htmlstr(), success=True)
+        except Exception as e:
+            logging.exception(e)
+            logging.debug(e)
+            report_status(doi, curr_ja, str(e), success=False)
+
     # creates shelf store for article data (history)
     shelf = shelve.open('journal_shelf', writeback=False)
 
@@ -94,40 +125,39 @@ def convert_and_upload(article_deque):
             doi_article = article_deque.pop()
             doi = doi_article['doi']
             reupload = doi_article['reupload']
-            logging.info('working on doi %s and reupload was %s' % (str(doi), str(reupload)))
             article = doi_article['article']
+            curr_ja = journal_article(doi=doi, article=article, parameters=parameters)
             logging.debug('associated article %s' % article)
-            if doi not in shelf.keys() or reupload:
+            logging.info('working on doi %s and reupload was %s' % (str(doi), str(reupload)))
+            #DOI not in shelf
+            if doi not in shelf.keys():
                 logging.info('doi %s was not in shelf' % doi)
-                try:
-                    ja = journal_article(doi=doi, article=article, parameters=parameters)
-                    ja.get_pmcid()
-                    ja.get_targz()
-                    ja.extract_targz()
-                    ja.find_nxml()
-                    ja.extract_metadata()
-                    ja.xslt_it()
-                    ja.upload_images()
-                    ja.get_mwtext_element()
-                    ja.replace_image_names_in_wikitext()
-                    ja.replace_supplementary_material_links_in_wikitext()
-                    ja.push_to_wikisource()
-                    ja.push_redirect_wikisource()
-                    shelf[doi] = ja
-                    shelf.sync()
-                    report_status(doi, ja, ja.htmlstr(), success=True)
-                except Exception as e:
-                    logging.exception(e)
-                    logging.debug(e)
-                    report_status(doi, ja, str(e), success=False)
+                prev_ja = None
+                process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, text_only=False, shelf=shelf, doi=doi)           
+
+#DOI was in shelf, but maybe we are repuploading
             else:
                 logging.info('doi %s was in shelf' % doi)
+                if not reupload:
+                    logging.info('doi %s is being ignored because reupload was not on' % doi)
+                else:
+                    prev_ja = shelf[doi]
+                    if 'reupload_images' in reupload:
+                        text_only = False
+                    else: #this condition should mean that reupload is ['reupload_text']
+                        text_only = True
+                    process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, text_only=text_only, shelf=shelf, doi=doi)
+                    
+        
         except IndexError: #nothing in the deque
             logging.info('nothing in deque sleepytime')
             time.sleep(10)
             continue
     shelf.close()
 
+
+
+#The main threads
 article_deque = deque()
 jump_producer = threading.Thread(target=add_jumpers_to_deque, kwargs={'article_deque':article_deque})
 detect_producer = threading.Thread(target=add_detected_to_deque, kwargs={'article_deque':article_deque})
