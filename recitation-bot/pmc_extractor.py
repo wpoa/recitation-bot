@@ -33,8 +33,8 @@ def extract_metadata(target_nxml):
     metadata['supplement_captions'] = _get_supplementary_captions(tree)
     metadata['images'] = dict(metadata['image_captions'].items() + metadata['supplement_captions'].items() )
     metadata['supplementary-materials'] = _get_supplementary_materials(tree)
-
     return metadata
+
 
 def _strip_whitespace(text):
     """
@@ -263,7 +263,7 @@ def _get_article_licensing(tree):
     if license_url is None:
         if license_text is not None:
            try:
-               license_url = license_url_equivalents[license_text]
+               license_url = license_url_equivalents[license_text.encode('utf-8')]
            except:
              #logging.error('Unknown license: %s', license_text)
              pass
@@ -271,8 +271,8 @@ def _get_article_licensing(tree):
         elif copyright_statement_text is not None:
             copyright_statement_found = False
             for text in copyright_statement_url_equivalents.keys():
-                if copyright_statement_text.endswith(text):
-                    license_url = copyright_statement_url_equivalents[text]
+                if copyright_statement_text.endswith(text.encode('utf-8')):
+                    license_url = copyright_statement_url_equivalents[text.encode('utf-8')]
                     copyright_statement_found = True
                     break
             if not copyright_statement_found:
