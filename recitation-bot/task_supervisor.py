@@ -13,6 +13,7 @@ import json
 from sys import stderr
 import logging
 import ast
+import status_page
 
 logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -52,22 +53,11 @@ def add_detected_to_deque(article_deque):
     finder.find_new_doi_article_pairs(article_deque)
 
 def report_status(doi, ja, status_msg, success):
-    success_str = 'succeeded' if success else 'failed'
-    waiting_page_path = '/data/project/recitation-bot/public_html/'+doi+'.html'
-    waiting_page = open(waiting_page_path, 'w')
-    waiting_text = r'''<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<title>DOI upload status report</title>
-<html>
-<body>
-<p>doi: %s</p>
-<p>success: %s </p>
-<p>%s</p>
-</body>
-</html>''' % (doi, success_str, status_msg)
-    waiting_page.write(waiting_text.encode('utf-8'))
-    waiting_page.close()
+    status_page.make_status_page(doi=doi, success=success, 
+                                 error_msg=status_msg,
+                                 ja = ja, inqueue=False)
 
-    #log off all the failures
+    #log all the failures
     if success:
         twython_access.update_status(ja)
     if not success:
@@ -101,7 +91,7 @@ def convert_and_upload(article_deque):
             curr_ja.push_redirect_wikisource()
             shelf[doi] = curr_ja
             shelf.sync()
-            report_status(doi, curr_ja, curr_ja.htmlstr(), success=True)
+            report_status(doi, curr_ja, None, success=True)
         except Exception as e:
             logging.exception(e)
             logging.debug(e)
