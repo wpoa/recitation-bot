@@ -1,4 +1,4 @@
-#!/u`sr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #all credits to https://github.com/wpoa/open-access-media-importer/
 
@@ -7,6 +7,7 @@ from os import listdir, path
 from sys import stderr
 from xml.etree.ElementTree import ElementTree
 from collections import defaultdict
+import json
 
 def extract_metadata(target_nxml):
     """
@@ -209,6 +210,11 @@ def _get_article_url(tree):
     doi = _get_article_doi(tree)
     if doi:
         return 'http://dx.doi.org/' + doi
+
+open_license_dict_path = '/data/project/recitation-bot/Open-License-Dictionary'
+
+license_url_equivalents = json.load(open(open_license_dict_path+'open_license_dictionary.json','r'))
+
 
 license_url_equivalents = {
     'This is an Open Access article distributed under the terms of the Creative Commons Attribution License, ( http://creativecommons.org/licenses/by/3.0/ ) which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.': 'http://creativecommons.org/licenses/by/3.0/',
@@ -651,3 +657,9 @@ def _get_supplementary_material_url(pmcid, href):
     """
     return str('http://www.ncbi.nlm.nih.gov/pmc/articles/PMC' + pmcid +
         '/bin/' + href)
+
+
+if __name__ == '__main__':
+    #test that we can pull from the Open License Dict well
+    print('Open license loaded:', len(license_url_equivalents))
+    print('Copyright licenses loaded:', len(copyright_statement_url_equivalents))
