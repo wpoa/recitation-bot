@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 import requests
@@ -42,6 +41,12 @@ class journal_article():
         self.article = article
         self.parameters = parameters
 
+        #use these for image uploading
+        self.commons = ('commons', 'commons', 'images')
+        self.equations = (self.parameters['wikisource_site'], 'wikisource', 'equations')
+        self.tables = (self.parameters['wikisource_site'], 'wikisource', 'tables')
+
+
         # Phases, for example: (a) downloaded article, (b) extracted article's
         # pmcid, (c) uploaded the images to commons, etc.
         self.phase = defaultdict(bool)
@@ -54,18 +59,26 @@ class journal_article():
         for retries in range(5):
             try:
                 idconverter = requests.get('http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/', params=idpayload)
-                records = idconverter.json()['records']
+                try:#if the doi wasnt in pmc you can't get the records out, if the api returned not-json the you get a value error
+                    records = idconverter.json()['records']
+                except KeyError:
+                    raise ConversionError(message='probably the doi has a typo or extra text at the front or back', doi=self.doi)
+
+                if len(records) == 1:
+                    # since we are supplying a single doi, assumes we receive only 1 record
+                    record = records[0]
+                    self.pmcid = record['pmcid']
+                else:
+                    raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
+                
+            
+
                 reachable = True
+                break
             except ValueError as e:
                 time.sleep(2)
         if not reachable:
             raise ConversionError(message='usually this is because PMCs API has gone down. Try clicking this URL to see: <br /> <a href="http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=%s&format=json">API link</a>' % self.doi  ,doi=self.doi)
-        if len(records) == 1:
-            # since we are supplying a single doi, assumes we receive only 1 record
-            record = records[0]
-        else:
-            raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
-        self.pmcid = record['pmcid']
 
         self.phase['get_pmcid'] = True
 
@@ -170,38 +183,28 @@ class journal_article():
 
         except:
             raise ConversionError(message='no text element')
-        '''
-    def remove_table_image_links(self):
-        wikicode = self.wikitext 
-
-        self.phase['remove_table_image_links']
-        '''
 
     def upload_images(self):
-        commons = pywikibot.Site('commons', 'commons')
-        if not commons.logged_in():
-            commons.login()
+        #this is the upload procedure which we call in a second
+        def upload(site, metadata, image_dict):
+            for image in metadata[image_dict]:
+                image_file, qualified_image_location = helpers.find_right_extension(image, self.qualified_article_dir)
 
-        #TODO do the supplements as well
+                logging.info(image_file)
 
-        for image in self.metadata['images']:
-            image_file, qualified_image_location = helpers.find_right_extension(image, self.qualified_article_dir)
-
-            logging.info(image_file)
-
-            if image_file: #we found a valid image file
-                    harmonized_name = helpers.harmonizing_name(image_file, self.metadata['article-title'])
-                    #print harmonized_name
-                    image_page = pywikibot.ImagePage(commons, harmonized_name)
-                    page_text = commons_template.page(self.metadata, self.metadata['images'][image]['caption'])
+                if image_file: #we found a valid image file
+                    harmonized_name = helpers.harmonizing_name(image_file, metadata['article-title'])
+                        #print harmonized_name
+                    image_page = pywikibot.ImagePage(site, harmonized_name)
+                    page_text = commons_template.page(metadata, metadata[image_dict][image]['caption'])
                     image_page._text = page_text
                     try:
-                        commons.upload(imagepage=image_page, source_filename=qualified_image_location, 
+                        site.upload(imagepage=image_page, source_filename=qualified_image_location, 
                                        comment='Automatic upload of media from: [[doi:' + self.doi+']]',
                                        ignore_warnings=False)
-                                       # "ignore_warnings" means "overwrite" if True
+                                           # "ignore_warnings" means "overwrite" if True
                         logging.info('Uploaded image %s' % image_file)
-                        self.metadata['images'][image]['uploaded_name'] = harmonized_name
+                        metadata[image_dict][image]['uploaded_name'] = harmonized_name
                     except pywikibot.exceptions.UploadWarning as warning:
                         warning_string = unicode(warning)
                         if warning_string.startswith('Uploaded file is a duplicate of '):
@@ -210,40 +213,49 @@ class journal_article():
                             duplicate_name = duplicate_list[0]
                             print 'duplicate found: ', duplicate_name
                             logging.info('Duplicate image %s' % image_file)
-                            self.metadata['images'][image]['uploaded_name'] = duplicate_name
+                            metadata[image_dict][image]['uploaded_name'] = duplicate_name
                         elif warning_string.endswith('already exists.'):
                             logging.info('Already exists image %s' % image_file)
-                            self.metadata['images'][image]['uploaded_name'] = harmonized_name
-                            '''
-                            #I thought this would be good because it would allow new descriptions, however people were complaining that it was overwriting their categorization, which was true. So until we have more time to inspect categories, once we've uploaded a description it won't be easy to programmitcally change it.
-                            existing_page_text = image_page.get()
-                            if existing_page_text != page_text:
-                                image_page.put(newtext=page_text, comment='Updating description')
-                            '''
+                            metadata[image_dict][image]['uploaded_name'] = harmonized_name
                         else:
                             raise
+        
+
+        #now we start calling the uploader
+
+        for lang, family, image_dict in [self.commons, self.equations, self.tables]:
+            site = pywikibot.Site(lang, family)
+            if not site.logged_in():
+                site.login()
+
+            upload(site, self.metadata, image_dict)
 
         self.phase['upload_images'] = True
 
     def replace_image_names_in_wikitext(self):
-        replacing_text = self.wikitext
-        for image in self.metadata['images'].iterkeys():
-            extensionless_re = r'File:(' + image + r')\|'
-            try:
-                new_file_text = r'File:' + self.metadata['images'][image]['uploaded_name'] + r'|'
-                replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
-                if occurrences != 1:
-                    print occurrences, image
-                    # print replacing_text
-            except KeyError:
-                #the file may not have been uploaded and thus not have an uploaded name
-                continue #on to the next image
-        if 'replacing_text' in locals():
-            #this should only be false if there are supplemental images but not canonical images
-            self.image_fixed_wikitext = replacing_text
-        else:
-            self.image_fixed_wikitext = self.wikitext
 
+        def replace(metadata, image_dict, replacing_text):
+            for image in metadata[image_dict].iterkeys():
+                extensionless_re = r'File:(' + image + r')\|'
+                logging.info('extensionless re: %s' % extensionless_re)
+                try:
+                    new_file_text = r'File:' + metadata[image_dict][image]['uploaded_name'] + r'|'
+                    replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
+                    logging.info('re stuff: %s, %s, %s' % (extensionless_re, new_file_text,  occurrences) ) 
+                    if occurrences != 1:
+                        logging.info('not one replace occurence %s, %s ' % (occurrences, image))
+                except KeyError:
+                    #the file may not have been uploaded and thus not have an uploaded name
+                    continue #on to the next image
+            return replacing_text
+        
+
+        self.image_fixed_wikitext = self.wikitext #it will become image_fixed_wikitext
+        for lang, family, image_dict in [self.commons, self.equations, self.tables]:
+            #we don't need lang or family for this, but i keep the loop just for formalism
+            logging.info('now replacing: %s' % image_dict)
+            self.image_fixed_wikitext = replace(self.metadata, image_dict, self.image_fixed_wikitext)    
+        
         self.phase['replace_image_names_in_wikitext'] = True
 
     def replace_supplementary_material_links_in_wikitext(self):

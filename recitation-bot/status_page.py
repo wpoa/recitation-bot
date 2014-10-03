@@ -25,7 +25,7 @@ def make_status_page(doi, success, error_msg, ja, inqueue):
     old_page_content = ''
     if os.path.isfile(page_path):
         old_page_content = open(page_path, 'r').read()
-    appended_output = output + old_page_content
+    appended_output = output + old_page_content.decode('utf-8')
     page = open(page_path, 'w')
     uni_out = appended_output.encode('utf-8')
     page.write(uni_out)

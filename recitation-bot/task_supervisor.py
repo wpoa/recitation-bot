@@ -113,6 +113,7 @@ def convert_and_upload(article_deque):
     while 1: # True
         try:
             doi_article = article_deque.pop()
+            logging.info(doi_article)
             doi = doi_article['doi']
             reupload = doi_article['reupload']
             article = doi_article['article']

@@ -8,6 +8,7 @@ from sys import stderr
 from xml.etree.ElementTree import ElementTree
 from collections import defaultdict
 import json
+import sys
 
 def extract_metadata(target_nxml):
     """
@@ -33,6 +34,11 @@ def extract_metadata(target_nxml):
     metadata['supplement_captions'] = _get_supplementary_captions(tree)
     metadata['images'] = dict(metadata['image_captions'].items() + metadata['supplement_captions'].items() )
     metadata['supplementary-materials'] = _get_supplementary_materials(tree)
+    metadata['inline_formulae'] = _get_filenames_2tags(tree, 'inline-formula', 'inline-graphic')
+    metadata['display_formulae'] = _get_filenames_2tags(tree, 'disp-formula', 'graphic')
+    metadata['equations'] = dict(metadata['inline_formulae'].items() + metadata['display_formulae'].items() )
+    metadata['tables'] = _get_filenames_2tags(tree, 'alternatives', 'graphic')
+
     return metadata
 
 
@@ -44,6 +50,33 @@ def _strip_whitespace(text):
         [line.strip() for line in text.splitlines()]
     )
     return text.strip('\n')
+
+
+def _get_filenames_2tags(tree, tag1, tag2):
+    """
+    Given an ElementTree returns iamges as a
+    dictionary containing, file_names.
+    """
+    return_captions = defaultdict(dict)
+    for t1 in tree.iter(tag1):
+        t2 = t1.find(tag2)
+        file_name = t2.attrib['{http://www.w3.org/1999/xlink}href']
+        return_captions[file_name]['caption'] = file_name #we could use a list but leaving for generality in the future since the other images return a dict
+    return return_captions
+
+
+def _get_equations(tree):
+    """
+    Given an ElementTree returns iamges as a
+    dictionary containing, file_names.
+    """
+    fig_captions = defaultdict(dict)
+    for fig in tree.iter('inline-formula'):
+        graphic = fig.find('inline-graphic')
+        file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
+        fig_captions[file_name] = '' #we could use a list, im not sure if all inline-graphics are self-closing
+    return fig_captions
+
 
 def _get_image_captions(tree):
     """
@@ -427,3 +460,11 @@ if __name__ == '__main__':
     #test that we can pull from the Open License Dict well
     print('Open license loaded:', len(license_url_equivalents))
     print('Copyright licenses loaded:', len(copyright_statement_url_equivalents))
+    target_nxml = sys.argv[1]
+    metadata = extract_metadata(target_nxml)
+    for k,v in metadata.iteritems():
+        if k in ['inline_formulae', 'display_formulae']:
+            print k
+            print len(v)
+            #for r, s in v.iteritems():
+            #   print r[-6:]
