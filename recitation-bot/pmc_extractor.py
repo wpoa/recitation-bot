@@ -65,19 +65,6 @@ def _get_filenames_2tags(tree, tag1, tag2):
     return return_captions
 
 
-def _get_equations(tree):
-    """
-    Given an ElementTree returns iamges as a
-    dictionary containing, file_names.
-    """
-    fig_captions = defaultdict(dict)
-    for fig in tree.iter('inline-formula'):
-        graphic = fig.find('inline-graphic')
-        file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
-        fig_captions[file_name] = '' #we could use a list, im not sure if all inline-graphics are self-closing
-    return fig_captions
-
-
 def _get_image_captions(tree):
     """
     Given an ElementTree returns iamges as a
@@ -86,17 +73,18 @@ def _get_image_captions(tree):
     fig_captions = defaultdict(dict)
     for fig in tree.iter('fig'):
         graphic = fig.find('graphic')
-        file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
-        label_text = ''
-        label = fig.find('label')
-        if label is not None:
-            label_text = label.text
-            fig_captions[file_name]['label'] = label_text
-        caption = fig.find('caption/p')
-        caption_text = ''
-        if caption is not None:
-            caption_text = _strip_whitespace(''.join(caption.itertext()))
-        fig_captions[file_name]['caption'] = caption_text
+        if graphic is not None: #adding an extra check here because sometimes graphic is None
+            file_name = graphic.attrib['{http://www.w3.org/1999/xlink}href']
+            label_text = ''
+            label = fig.find('label')
+            if label is not None:
+                label_text = label.text
+                fig_captions[file_name]['label'] = label_text
+            caption = fig.find('caption/p')
+            caption_text = ''
+            if caption is not None:
+                caption_text = _strip_whitespace(''.join(caption.itertext()))
+            fig_captions[file_name]['caption'] = caption_text
     return fig_captions
 
 def _get_supplementary_captions(tree):
@@ -463,8 +451,8 @@ if __name__ == '__main__':
     target_nxml = sys.argv[1]
     metadata = extract_metadata(target_nxml)
     for k,v in metadata.iteritems():
-        if k in ['inline_formulae', 'display_formulae']:
-            print k
-            print len(v)
+        #if k in ['inline_formulae', 'display_formulae']:
+        print k
+        print v
             #for r, s in v.iteritems():
             #   print r[-6:]

@@ -53,13 +53,15 @@ def add_detected_to_deque(article_deque):
     finder.find_new_doi_article_pairs(article_deque)
 
 def report_status(doi, ja, status_msg, success):
+    logging.info('reporting status with success %s' % str(success))
     status_page.make_status_page(doi=doi, success=success, 
                                  error_msg=status_msg,
                                  ja = ja, inqueue=False)
 
     #log all the failures
     if success:
-        twython_access.update_status(ja)
+        #twython_access.update_status(ja)
+        logging.info('doi: %s, succeed' % doi)
     if not success:
         logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status_msg) )
         faillog.info('DOI: %s <br />\nFAIL MESSAGE:%s <br /><br />\n' % (doi, status_msg) )
@@ -73,6 +75,7 @@ def convert_and_upload(article_deque):
             curr_ja.get_pmcid()
             curr_ja.get_targz()
             curr_ja.extract_targz()
+            logging.info('ja phase: %s' % str(curr_ja.phase))
             curr_ja.find_nxml()
             curr_ja.extract_metadata()
             curr_ja.xslt_it()

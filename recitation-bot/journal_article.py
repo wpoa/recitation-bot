@@ -123,6 +123,7 @@ class journal_article():
             if len(nxml_files) != 1:
                 raise ConversionError(message='we need exactly 1 nxml file, no more, no less', doi=self.doi)
             nxml_file = nxml_files[0]
+            logging.info('the nxml file being used is: %s' % str(nxml_file))
             self.nxml_path = os.path.join(self.qualified_article_dir, nxml_file)
 
             self.phase['find_nxml'] = True
