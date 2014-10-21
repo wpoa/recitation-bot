@@ -185,7 +185,7 @@ class journal_article():
         except:
             raise ConversionError(message='no text element')
 
-    def upload_images(self):
+    def upload_images(self, im_uploads):
         #this is the upload procedure which we call in a second
         def upload(site, metadata, image_dict):
             for image in metadata[image_dict]:
@@ -223,8 +223,14 @@ class journal_article():
         
 
         #now we start calling the uploader
+        upload_sites = list()
+        sites_map = {'commons':self.commons,
+                     'equations':self.equations,
+                     'tables':self.tables}
+        for sitestr, flag in im_uploads.iteritems():
+            upload_sites.append(sites_map[sitestr])
 
-        for lang, family, image_dict in [self.commons, self.equations, self.tables]:
+        for lang, family, image_dict in upload_sites:
             site = pywikibot.Site(lang, family)
             if not site.logged_in():
                 site.login()

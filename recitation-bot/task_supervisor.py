@@ -70,7 +70,7 @@ def report_status(doi, ja, status_msg, success):
 
 def convert_and_upload(article_deque):
 
-    def process_journal_article(prev_ja, curr_ja, reupload, shelf, doi):
+    def process_journal_article(prev_ja, curr_ja, im_uploads, shelf, doi):
         try:
             curr_ja.get_pmcid()
             curr_ja.get_targz()
@@ -80,12 +80,16 @@ def convert_and_upload(article_deque):
             curr_ja.extract_metadata()
             curr_ja.xslt_it()
             
-            logging.info('text_only?'+str(text_only))
-            if not reupload:
-                curr_ja.upload_images()
-            else:
-                #is this dangerous brain surgery? im not sure.
-                curr_ja.metadata['images'] = prev_ja.metadata['images']
+            curr_ja.upload_images(im_uploads)
+            #is this dangerous brain surgery? im not sure.
+            if prev_ja: #that means we have a donor brain for surgery
+                surgery_map = {'commons':'images',
+                               'equations':'equations',
+                               'tables':'tables'}
+                #now we're putting in the things we didn't send to upload
+                for sitestr, flag in im_uploads.iteritems():
+                    if not flag:
+                        curr_ja.metadata[surgery_map[sitestr]] = prev_ja.metadata[surgery_map[sitestr]]
             
             curr_ja.get_mwtext_element()
             curr_ja.replace_image_names_in_wikitext()
@@ -127,7 +131,8 @@ def convert_and_upload(article_deque):
             if doi not in shelf.keys():
                 logging.info('doi %s was not in shelf' % doi)
                 prev_ja = None
-                process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, reupload=False, shelf=shelf, doi=doi)           
+                im_uploads = {'commons':True, 'equations':True, 'tables':True}
+                process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, im_uploads=im_uploads, shelf=shelf, doi=doi)           
 
 #DOI was in shelf, but maybe we are repuploading
             else:
@@ -136,7 +141,15 @@ def convert_and_upload(article_deque):
                     logging.info('doi %s is being ignored because reupload was not on' % doi)
                 else:
                     prev_ja = shelf[doi]
-                    process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, reupload=reupload, shelf=shelf, doi=doi)
+                    #Default to false
+                    im_uploads = {'commons':False, 'equations':False, 'tables':False}
+                    im_up_map = {'reupload_images':'commons',
+                                 'reupload_equations':'equations',
+                                 'reupload_tables':'tables'}
+                    for reup in reuploads:
+                        im_uploads[im_up_map[reup]] = True
+
+                    process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, im_uploads=im_uploads, shelf=shelf, doi=doi)
                     
         
         except IndexError: #nothing in the deque
