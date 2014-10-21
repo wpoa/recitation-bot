@@ -140,15 +140,17 @@ def convert_and_upload(article_deque):
                 if not reupload:
                     logging.info('doi %s is being ignored because reupload was not on' % doi)
                 else:
+                    logging.info('doi %s is being processed because a reuploade parameter was found' % doi)
                     prev_ja = shelf[doi]
                     #Default to false
                     im_uploads = {'commons':False, 'equations':False, 'tables':False}
                     im_up_map = {'reupload_images':'commons',
                                  'reupload_equations':'equations',
                                  'reupload_tables':'tables'}
-                    for reup in reuploads:
-                        im_uploads[im_up_map[reup]] = True
-
+                    for reup in reupload:
+                        if reup != 'reupload_text': #we always redo the text
+                            im_uploads[im_up_map[reup]] = True
+                    logging.info(str(im_uploads))
                     process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, im_uploads=im_uploads, shelf=shelf, doi=doi)
                     
         
