@@ -70,7 +70,7 @@ def report_status(doi, ja, status_msg, success):
 
 def convert_and_upload(article_deque):
 
-    def process_journal_article(prev_ja, curr_ja, text_only, shelf, doi):
+    def process_journal_article(prev_ja, curr_ja, reupload, shelf, doi):
         try:
             curr_ja.get_pmcid()
             curr_ja.get_targz()
@@ -81,7 +81,7 @@ def convert_and_upload(article_deque):
             curr_ja.xslt_it()
             
             logging.info('text_only?'+str(text_only))
-            if not text_only:
+            if not reupload:
                 curr_ja.upload_images()
             else:
                 #is this dangerous brain surgery? im not sure.
@@ -127,7 +127,7 @@ def convert_and_upload(article_deque):
             if doi not in shelf.keys():
                 logging.info('doi %s was not in shelf' % doi)
                 prev_ja = None
-                process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, text_only=False, shelf=shelf, doi=doi)           
+                process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, reupload=False, shelf=shelf, doi=doi)           
 
 #DOI was in shelf, but maybe we are repuploading
             else:
@@ -136,11 +136,7 @@ def convert_and_upload(article_deque):
                     logging.info('doi %s is being ignored because reupload was not on' % doi)
                 else:
                     prev_ja = shelf[doi]
-                    if 'reupload_images' in reupload:
-                        text_only = False
-                    else: #this condition should mean that reupload is ['reupload_text']
-                        text_only = True
-                    process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, text_only=text_only, shelf=shelf, doi=doi)
+                    process_journal_article(prev_ja=prev_ja, curr_ja=curr_ja, reupload=reupload, shelf=shelf, doi=doi)
                     
         
         except IndexError: #nothing in the deque

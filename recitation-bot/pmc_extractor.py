@@ -250,13 +250,16 @@ license_url_fixes = {
 
 def _get_article_licensing(tree):
     """
-    Given an ElementTree, returns article license URL.
+    NOTE!!!! ‽!?!⸘ the variable name 'licence' is a reserved word (who would have thought⸘)
+    so so ive renamed some all the vars in this block to use the Aussie spelling. but i have not changed the outised of this block since other functions may depend on it. 
+
+    Given an ElementTree, returns article licence URL.
     """
-    license_text = None
-    license_url = None
+    licence_text = None
+    licence_url = None
     copyright_statement_text = None
 
-    license = tree.find('front//*license')
+    licence = tree.find('front//*license')
     copyright_statement = tree.find('front//*copyright-statement')
 
     def _get_text_from_element(element):
@@ -264,57 +267,64 @@ def _get_article_licensing(tree):
         text = ' '.join(text.split())  # clean whitespace
         return text
 
-    if license is not None:
+    if licence is not None:
         try:
-            license_url = license.attrib['{http://www.w3.org/1999/xlink}href']
-        except KeyError: # license URL is possibly in in <ext-link> element
+            licence_url = licence.attrib['{http://www.w3.org/1999/xlink}href']
+        except KeyError: # licence URL is possibly in in <ext-link> element
             try:
-                ext_link = license.find('license-p/ext-link')
+                ext_link = licence.find('license-p/ext-link')
                 if ext_link is not None:
-                    license_url = \
+                    licence_url = \
                         ext_link.attrib['{http://www.w3.org/1999/xlink}href']
-            except KeyError: # license statement is in plain text
-                license_text = _get_text_from_element(license)
+            except KeyError: # licence statement maybe is in plain text
+                pass
+        try:
+            licence_text = _get_text_from_element(licence)
+        except:
+            pass
+            #logging.error('not sure what to do here')
     elif copyright_statement is not None:
         copyright_statement_text = _get_text_from_element(copyright_statement)
     else:
-        #logging.error('No <license> or <copyright-statement> element found in XML.')
+        #logging.error('No <licence> or <copyright-statement> element found in XML.')
         return None, None, None
 
-    if license_url is None:
-        if license_text is not None:
+    print licence_url, licence_text
+    if licence_url is None:
+        if licence_text is not None:
            try:
-               license_url = license_url_equivalents[license_text.encode('utf-8')]
-           except:
-             #logging.error('Unknown license: %s', license_text)
+               licence_url = license_url_equivalents[licence_text.encode('utf-8')]
+               print licence_url
+           except KeyError:
+             #logging.error('Unknown licence: %s', licence_text)
              pass
 
         elif copyright_statement_text is not None:
             copyright_statement_found = False
             for text in copyright_statement_url_equivalents.keys():
                 if copyright_statement_text.endswith(text.encode('utf-8')):
-                    license_url = copyright_statement_url_equivalents[text.encode('utf-8')]
+                    licence_url = copyright_statement_url_equivalents[text.encode('utf-8')]
                     copyright_statement_found = True
                     break
             if not copyright_statement_found:
                 #logging.error('Unknown copyright statement: %s', copyright_statement_text)
                 pass
 
-    def _fix_license_url(license_url):
-        if license_url in license_url_fixes.keys():
-            return license_url_fixes[license_url]
-        return license_url
+    def _fix_licence_url(licence_url):
+        if licence_url in license_url_fixes.keys():
+            return license_url_fixes[licence_url]
+        return licence_url
 
-    if license_text is not None:
-        license_text = license_text.decode('utf-8')
+    if licence_text is not None:
+        licence_text = licence_text.decode('utf-8')
 
     if copyright_statement_text is not None:
         copyright_statement_text = copyright_statement_text.decode('utf-8')
 
-    if license_url is not None:
-        return _fix_license_url(license_url), license_text, copyright_statement_text
+    if licence_url is not None:
+        return _fix_licence_url(licence_url), licence_text, copyright_statement_text
     else:
-        return None, license_text, copyright_statement_text
+        return None, licence_text, copyright_statement_text
 
 def _get_article_copyright_holder(tree):
     """
@@ -451,8 +461,6 @@ if __name__ == '__main__':
     target_nxml = sys.argv[1]
     metadata = extract_metadata(target_nxml)
     for k,v in metadata.iteritems():
-        #if k in ['inline_formulae', 'display_formulae']:
-        print k
-        print v
-            #for r, s in v.iteritems():
-            #   print r[-6:]
+        if k in ['article-license-text']:
+            print k
+            print v
