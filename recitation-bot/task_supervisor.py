@@ -60,7 +60,7 @@ def report_status(doi, ja, status_msg, success):
 
     #log all the failures
     if success:
-        #twython_access.update_status(ja)
+        twython_access.update_status(ja)
         logging.info('doi: %s, succeed' % doi)
     if not success:
         logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status_msg) )
