@@ -19,7 +19,9 @@ def make_status_page(doi, success, error_msg, ja, inqueue):
         doiurl = ja.doiurl()
     except:
         doiurl = None #we actually check for this being empty
-    output = status_template.render(doi=doi, success_str=success_str, error_msg=error_msg, metadata=metadata, doiurl=doiurl, time=time, inqueue=inqueue)
+    output = status_template.render(doi=doi, success_str=success_str,
+    error_msg=error_msg, metadata=metadata, doiurl=doiurl, time=time,
+    inqueue=inqueue)
 
     page_base_path = '/data/project/recitation-bot/public_html/'
     doi_split = doi.rsplit('/', 1) # split on last '/', always at least 1

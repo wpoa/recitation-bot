@@ -185,7 +185,7 @@ class journal_article():
         except:
             raise ConversionError(message='no text element')
 
-    def upload_images(self, im_uploads):
+    def upload_images(self, im_uploads, badtokenfixtry=False):
         #this is the upload procedure which we call in a second
         def upload(site, metadata, image_dict):
             for image in metadata[image_dict]:
@@ -196,17 +196,18 @@ class journal_article():
                 if image_file: #we found a valid image file
                     harmonized_name = helpers.harmonizing_name(image_file, metadata['article-title'])
                         #print harmonized_name
-                    image_page = pywikibot.ImagePage(site, harmonized_name)
+                    file_page = pywikibot.FilePage(site, harmonized_name)
                     page_text = commons_template.page(metadata, metadata[image_dict][image]['caption'])
-                    image_page._text = page_text
+                    file_page._text = page_text
                     try:
-                        site.upload(imagepage=image_page, source_filename=qualified_image_location, 
+                        site.upload(filepage=file_page, source_filename=qualified_image_location, 
                                        comment='Automatic upload of media from: [[doi:' + self.doi+']]',
                                        ignore_warnings=False)
                                            # "ignore_warnings" means "overwrite" if True
                         logging.info('Uploaded image %s' % image_file)
                         metadata[image_dict][image]['uploaded_name'] = harmonized_name
-                    except pywikibot.exceptions.UploadWarning as warning:
+                    except pywikibot.data.api.UploadWarning as warning:
+                        logging.info('warningstr is: %s' % warning)
                         warning_string = unicode(warning)
                         if warning_string.startswith('Uploaded file is a duplicate of '):
                             liststring = warning_string.split('Uploaded file is a duplicate of ')[1][:-1]
@@ -232,9 +233,11 @@ class journal_article():
 
         for lang, family, image_dict in upload_sites:
             site = pywikibot.Site(lang, family)
+            if badtokenfixtry:
+                site.logout()
             if not site.logged_in():
-                site.login()
-
+                site.login()    
+            
             upload(site, self.metadata, image_dict)
 
         self.phase['upload_images'] = True

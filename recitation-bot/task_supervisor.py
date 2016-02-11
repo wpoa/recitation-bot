@@ -48,9 +48,12 @@ def add_jumpers_to_deque(article_deque):
         time.sleep(10)
 
 def add_detected_to_deque(article_deque):
-    logging.debug('detector thread launched')
-    finder = doi_finder(lang='test2wiki')
-    finder.find_new_doi_article_pairs(article_deque)
+    try:
+        logging.debug('detector thread launched')
+        finder = doi_finder(lang='test2wiki')
+        finder.find_new_doi_article_pairs(article_deque)
+    except: #sometimes the database goes away
+        pass
 
 def report_status(doi, ja, status_msg, success):
     logging.info('reporting status with success %s' % str(success))
@@ -64,13 +67,13 @@ def report_status(doi, ja, status_msg, success):
         logging.info('doi: %s, succeed' % doi)
     if not success:
         logging.info('DOI: %s \nFAIL MESSAGE:%s' % (doi, status_msg) )
-        faillog.info('DOI: %s <br />\nFAIL MESSAGE:%s <br /><br />\n' % (doi, status_msg) )
+        faillog.info('DOI: %s \nFAIL MESSAGE:%s \n' % (doi, status_msg) )
 
 
 
 def convert_and_upload(article_deque):
 
-    def process_journal_article(prev_ja, curr_ja, im_uploads, shelf, doi):
+    def process_journal_article(prev_ja, curr_ja, im_uploads, shelf, doi, badtokenfixtry=False):
         try:
             curr_ja.get_pmcid()
             curr_ja.get_targz()
@@ -80,7 +83,7 @@ def convert_and_upload(article_deque):
             curr_ja.extract_metadata()
             curr_ja.xslt_it()
             
-            curr_ja.upload_images(im_uploads)
+            curr_ja.upload_images(im_uploads, badtokenfixtry)
             #is this dangerous brain surgery? im not sure.
             if prev_ja: #that means we have a donor brain for surgery
                 surgery_map = {'commons':'images',
@@ -99,6 +102,14 @@ def convert_and_upload(article_deque):
             shelf[doi] = curr_ja
             shelf.sync()
             report_status(doi, curr_ja, None, success=True)
+        except pywikibot.data.api.APIError as e:
+            if e.code == 'badtoken':
+                logging.info("There was an API badtoken error")
+                if not badtokenfixtry:
+                    process_journal_article(prev_ja, curr_ja, im_uploads, shelf, doi, badtokenfixtry=True)
+                else:
+                    logging.info('badtoken still being broken')
+                    logging.exception(e)
         except Exception as e:
             logging.exception(e)
             logging.debug(e)
