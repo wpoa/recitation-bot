@@ -66,7 +66,7 @@ class doi_finder():
             utc = datetime.datetime.utcnow()
             self.check_time = utc.strftime('%Y%m%d%H%M%S')
             number_of_new_additions = len(new_additions)
-            logging.info('found %s new additions:', number_of_new_additions))
+            logging.info('found %s new additions:', number_of_new_additions)
             if new_additions:
                 self.article_deque.extendleft(new_addition)
                 self.shelf.sync()

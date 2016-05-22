@@ -1,0 +1,3 @@
+[submodule "JATS-to-Mediawiki"]
+	path = JATS-to-Mediawiki
+	url = https://github.com/wpoa/JATS-to-Mediawiki.git
