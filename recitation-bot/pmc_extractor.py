@@ -270,7 +270,7 @@ def _get_article_licensing(tree):
     if licence is not None:
         try:
             licence_url = licence.attrib['{http://www.w3.org/1999/xlink}href']
-        except KeyError: # licence URL is possibly in in <ext-link> element
+        except KeyError: # licence URL is possibly in <ext-link> element
             try:
                 ext_link = licence.find('license-p/ext-link')
                 if ext_link is not None:
@@ -286,7 +286,7 @@ def _get_article_licensing(tree):
     elif copyright_statement is not None:
         copyright_statement_text = _get_text_from_element(copyright_statement)
     else:
-        #logging.error('No <licence> or <copyright-statement> element found in XML.')
+        #logging.error('No <license> or <copyright-statement> element found in XML.')
         return None, None, None
 
     print licence_url, licence_text
