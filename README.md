@@ -22,6 +22,11 @@ Entry points
 + `detect_in_use_dois.py` is a producer that queries the sql replicas to find new dois to append to the end of the dequeue
 + `jump_the_queue.py` is a producer that is a webserver that takes immediate requests that go on the front of the dequeue
 
+To Launch
+---------
++ login in to wikimedia tools labs
++ `become recitation-bot`
++ run `sh submit_bot_to_grid.sh`
 
 # Troubleshooting
 ---------------
