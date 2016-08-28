@@ -1,0 +1,3 @@
+[submodule "Open-License-Dictionary"]
+	path = Open-License-Dictionary
+	url = https://github.com/wpoa/Open-License-Dictionary.git
