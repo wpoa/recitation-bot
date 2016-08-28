@@ -32,11 +32,11 @@ def extract_metadata(target_nxml):
     metadata['article-categories'] = _get_article_categories(tree)
     metadata['image_captions'] = _get_image_captions(tree)
     metadata['supplement_captions'] = _get_supplementary_captions(tree)
-    metadata['images'] = dict(metadata['image_captions'].items() + metadata['supplement_captions'].items() )
+    metadata['images'] = dict(list(metadata['image_captions'].items()) + list(metadata['supplement_captions'].items()) )
     metadata['supplementary-materials'] = _get_supplementary_materials(tree)
     metadata['inline_formulae'] = _get_filenames_2tags(tree, 'inline-formula', 'inline-graphic')
     metadata['display_formulae'] = _get_filenames_2tags(tree, 'disp-formula', 'graphic')
-    metadata['equations'] = dict(metadata['inline_formulae'].items() + metadata['display_formulae'].items() )
+    metadata['equations'] = dict(list(metadata['inline_formulae'].items()) + list(metadata['display_formulae'].items()) )
     metadata['tables'] = _get_filenames_2tags(tree, 'alternatives', 'graphic')
 
     return metadata
@@ -222,7 +222,7 @@ def _get_article_date(tree):
         except AttributeError:
             return year, month, None
         return year, month, day
-    raise RuntimeError, 'No date information found.'
+    raise RuntimeError('No date information found.')
 
 def _get_article_url(tree):
     """
@@ -232,7 +232,7 @@ def _get_article_url(tree):
     if doi:
         return 'http://dx.doi.org/' + doi
 
-open_license_dict_path = '/data/project/recitation-bot/Open-License-Dictionary/'
+open_license_dict_path = './Open-License-Dictionary/'
 
 license_url_equivalents = json.load(open(open_license_dict_path+'open_license_dictionary.json','r'))
 
@@ -262,8 +262,10 @@ def _get_article_licensing(tree):
     licence = tree.find('front//*license')
     copyright_statement = tree.find('front//*copyright-statement')
 
+    code = 'utf-8'
+
     def _get_text_from_element(element):
-        text = ' '.join(element.itertext()).encode('utf-8')  # clean encoding
+        text = ' '.join(element.itertext()).encode(code).decode(code)  # clean encoding
         text = ' '.join(text.split())  # clean whitespace
         return text
 
@@ -289,21 +291,21 @@ def _get_article_licensing(tree):
         #logging.error('No <license> or <copyright-statement> element found in XML.')
         return None, None, None
 
-    print licence_url, licence_text
+    print(licence_url, licence_text)
     if licence_url is None:
         if licence_text is not None:
            try:
-               licence_url = license_url_equivalents[licence_text.encode('utf-8')]
-               print licence_url
+               licence_url = license_url_equivalents[licence_text.encode(code).decode(code)]
+               print(licence_url)
            except KeyError:
              #logging.error('Unknown licence: %s', licence_text)
              pass
 
         elif copyright_statement_text is not None:
             copyright_statement_found = False
-            for text in copyright_statement_url_equivalents.keys():
-                if copyright_statement_text.endswith(text.encode('utf-8')):
-                    licence_url = copyright_statement_url_equivalents[text.encode('utf-8')]
+            for text in list(copyright_statement_url_equivalents.keys()):
+                if copyright_statement_text.endswith(text.encode(code).decode(code)):
+                    licence_url = copyright_statement_url_equivalents[text.encode(code).decode(code)]
                     copyright_statement_found = True
                     break
             if not copyright_statement_found:
@@ -311,15 +313,15 @@ def _get_article_licensing(tree):
                 pass
 
     def _fix_licence_url(licence_url):
-        if licence_url in license_url_fixes.keys():
+        if licence_url in list(license_url_fixes.keys()):
             return license_url_fixes[licence_url]
         return licence_url
 
     if licence_text is not None:
-        licence_text = licence_text.decode('utf-8')
+        licence_text = licence_text.encode(code).decode(code)
 
     if copyright_statement_text is not None:
-        copyright_statement_text = copyright_statement_text.decode('utf-8')
+        copyright_statement_text = copyright_statement_text.encode(code).decode(code)
 
     if licence_url is not None:
         return _fix_licence_url(licence_url), licence_text, copyright_statement_text
@@ -456,11 +458,11 @@ def _get_supplementary_material_url(pmcid, href):
 
 if __name__ == '__main__':
     #test that we can pull from the Open License Dict well
-    print('Open license loaded:', len(license_url_equivalents))
-    print('Copyright licenses loaded:', len(copyright_statement_url_equivalents))
+    print(('Open license loaded:', len(license_url_equivalents)))
+    print(('Copyright licenses loaded:', len(copyright_statement_url_equivalents)))
     target_nxml = sys.argv[1]
     metadata = extract_metadata(target_nxml)
-    for k,v in metadata.iteritems():
+    for k,v in metadata.items():
         if k in ['article-license-text']:
-            print k
-            print v
+            print(k)
+            print(v)

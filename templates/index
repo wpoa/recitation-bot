@@ -1,0 +1,14 @@
+<html>
+ <head></head>
+ <body>
+  <h1>DOI management</h1>
+  <p>{{ message }}</p>
+  <form action="{{ app_base }}" method="POST">
+    Get DOI info: <input name="DOI-query" type="text" />
+    <input type="submit" value="Submit" />
+  </form>
+  <form action="{{ app_base }}" method="POST">
+    Submit DOI for processing: <input name="DOI-submission" type="text" />
+    <input type="submit" value="Submit" />
+ </body>
+<html>
