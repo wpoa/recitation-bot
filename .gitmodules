@@ -1,3 +1,6 @@
 [submodule "Open-License-Dictionary"]
 	path = Open-License-Dictionary
 	url = https://github.com/wpoa/Open-License-Dictionary.git
+[submodule "JATS-to-Mediawiki"]
+	path = JATS-to-Mediawiki
+	url = https://github.com/wpoa/JATS-to-Mediawiki.git
