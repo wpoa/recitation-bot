@@ -14,8 +14,10 @@ if os.path.exists(labs_home):
 else:
 	running_on_labs = False
 
-def locate(path):
-	return os.path.join(labs_home if running_on_labs else '.', path)
+def locate(path, project = False):
+	"""bases to the project directory if project is true, else home"""
+	base = os.path.join(labs_home, 'new-bot') if project else labs_home
+	return os.path.join(base if running_on_labs else '.', path)
 
 # logging configuration
 
@@ -43,7 +45,7 @@ def convert_and_upload(doi, shelf):
     # TODO probably get rid of this, make them actual parameters of the methods that use them
     parameters = {
         "data_dir" : locate('journal-download-data'),
-        "jats2mw_xsl" : locate('JATS-to-Mediawiki/jats-to-mediawiki.xsl'),
+        "jats2mw_xsl" : locate('JATS-to-Mediawiki/jats-to-mediawiki.xsl', project = True),
         "wikisource_site" : 'en',
         "wikisource_basepath" : 'Wikisource:WikiProject_Open_AccessProgrammatic_import_from_PubMed_Central/',
         "image_extensions": ['jpg', 'jpeg', 'png']
