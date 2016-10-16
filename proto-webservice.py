@@ -3,7 +3,7 @@
 import logging, sys
 
 from multiprocessing import Process, Lock, Queue
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, url_for
 
 import os
 
@@ -164,9 +164,10 @@ def index():
         try:
             doistatus = shelf_global[doi]
             m = "Info for %s: %s" % (doi, str(doistatus.phase))
+            return render_template('index', message = m, doi_info = doistatus.items(), app_base = app_base)
         except KeyError:
             m = "DOI %s not found." % doi
-        return render_template('index', message = m, app_base = app_base)
+            return render_template('index', message = m, app_base = app_base)
     if 'DOI-submission' in request.form:
         doi = request.form['DOI-submission']
         action_queue.put(doi)

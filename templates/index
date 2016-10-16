@@ -1,8 +1,26 @@
 <html>
- <head></head>
+ <head>
+  <link rel="stylesheet" type="text/css" href="/static/style.css">
+ </head>
  <body>
+ <div id="container">
+ <div id="main" role="main">
   <h1>DOI management</h1>
+
+  {%- if message is defined -%}
   <p>{{ message }}</p>
+  {% endif %}
+
+  {%- if doi_info is defined -%}
+  {% block doi_info %}
+  <ul>
+  {% for item in doi_info %}
+    <li><strong>{{ item[0] }}:</strong> {{ item[1] }}</li>
+  {% endfor %}
+  </ul>
+  {% endblock %}
+  {% endif %}
+
   <form action="{{ app_base }}" method="POST">
     Get DOI info: <input name="DOI-query" type="text" />
     <input type="submit" value="Submit" />
@@ -10,5 +28,9 @@
   <form action="{{ app_base }}" method="POST">
     Submit DOI for processing: <input name="DOI-submission" type="text" />
     <input type="submit" value="Submit" />
+  </form>
+ </div>
+ </div>
  </body>
 <html>
+
