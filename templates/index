@@ -23,11 +23,19 @@
 
   <form action="{{ app_base }}" method="POST">
     Get DOI info: <input name="DOI-query" type="text" />
-    <input type="submit" value="Submit" />
+    <input type="submit" value="Submit DOI info query" />
   </form>
   <form action="{{ app_base }}" method="POST">
     Submit DOI for processing: <input name="DOI-submission" type="text" />
-    <input type="submit" value="Submit" />
+    <input type="submit" value="Submit DOI for processing" />
+  </form>
+  <form action="{{ app_base }}" method="POST">
+    <input type="hidden" name="DOI-list" value="" />
+    List DOIs in database: <input type="submit" value="List DOIs" />
+  </form>
+  <form action="{{ app_base }}" method="POST">
+    <input type="hidden" name="show-work-queue" value="" />
+    Show work queue: <input type="submit" value="Show work queue" />
   </form>
  </div>
  </div>

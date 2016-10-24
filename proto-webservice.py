@@ -2,7 +2,8 @@
 
 import logging, sys
 
-from multiprocessing import Process, Lock, Queue
+from multiprocessing import Process
+from multiprocessing import Lock, Queue
 from flask import Flask, request, jsonify, render_template, url_for
 
 import os
@@ -130,6 +131,13 @@ def open_shelf(shelf_filename):
                     shelf[key] = value
                     shelf.sync() # redundant with with statement? eh
 
+        def keys(self):
+            r = []
+            with self.lock:
+                with closing(shelve.open(self.filename)) as shelf:
+                    for key in shelf.keys(): r.append(key)
+            return r
+
         def __getitem__(self, key):
             return self.get(key)
 
@@ -161,22 +169,38 @@ app_base = '/recitation-bot/'
 @app.route('/', methods = ['GET', 'POST'])
 @app.route(app_base, methods = ['GET', 'POST'])
 def index():
+    m = ""
     if 'DOI-query' in request.form:
         doi = request.form['DOI-query']
         try:
             doistatus = shelf_global[doi]
-            m = "Info for %s: %s" % (doi, str(doistatus.phase))
-            return render_template('index', message = m, doi_info = doistatus.items(), app_base = app_base)
+            m += "Info for %s:" % doi
+            return render_template('index', message = m, doi_info = doistatus.phase.items(), app_base = app_base)
         except KeyError:
-            m = "DOI %s not found." % doi
+            m += "DOI %s not found." % doi
             return render_template('index', message = m, app_base = app_base)
     if 'DOI-submission' in request.form:
         doi = request.form['DOI-submission']
         action_queue.put(doi)
-        m = "Added %s to queue for processing." % doi
+        m += "Added %s to queue for processing." % doi
         return render_template('index', message = m, app_base = app_base)
+    if 'DOI-list' in request.form:
+        for key in shelf_global.keys():
+            m += str(key)+"<br/>\n"
+        return render_template('index', message = m, app_base = app_base)
+    if 'show-work-queue' in request.form:
+        from queue import Empty
+        items = []
+        empty = False
+        while not empty:
+            try: items.append(action_queue.get(block = False))
+            except Empty: empty = True
+        for i in items:
+            action_queue.put(i)
+            m += str(i)+"<br/>\n"
+        return render_template('index', message = str(i), app_base = app_base)
     else:
-        m = "No DOI requested. Enter request below."
+        m += "No action requested. Enter request below."
         return render_template('index', message = m, app_base = app_base)
 
 #app.debug = True # This does not work right with multiprocessing
