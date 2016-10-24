@@ -20,6 +20,8 @@ import time
 from datetime import datetime
 #import mwparserfromhell
 
+from collections import OrderedDict
+
 logger = logging.getLogger()
 
 class journal_article():
@@ -62,8 +64,18 @@ class journal_article():
 
         # Phases, for example: (a) downloaded article, (b) extracted article's
         # pmcid, (c) uploaded the images to commons, etc.
-        from collections import OrderedDict
+        self.init_phases()
+
+    def init_phases(self):
         self.phase = OrderedDict(self.__class__.phases)
+
+    def refresh(self):
+        '''
+        This method does what is necessary to update an old journal_article object loaded from the shelf
+        currently it just makes self.phase an OrderedDict if it is not already
+        '''
+        if type(self.phase) is not OrderedDict:
+            self.init_phases()
 
     # @TODO consider deprecating this for extract_metadata()
     # Already using OAMI method of getting PMID and PMCID
