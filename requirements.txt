@@ -3,4 +3,5 @@ requests
 beautifulsoup4
 wget
 pywikibot>=2.0rc5
+lxml
 

@@ -46,7 +46,7 @@ def convert_and_upload(doi, shelf_filename):
                                'equations':'equations',
                                'tables':'tables'}
                         #now we're putting in the things we didn't send to upload
-                        for sitestr, flag in im_uploads.iteritems():
+                        for sitestr, flag in im_uploads.items():
                             if not flag:
                                 curr_ja.metadata[surgery_map[sitestr]] = prev_ja.metadata[surgery_map[sitestr]]
                 # refresh journal article's parameters to current ones (they should probably be passed in to the methods instead where needed)

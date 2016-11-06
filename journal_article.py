@@ -117,7 +117,7 @@ class journal_article():
         # make request for archive file location
         archivefile_payload = {'id' : self.pmcid}
         archivefile_locator = requests.get('http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi', params=archivefile_payload)
-        record = BeautifulSoup(archivefile_locator.content)
+        record = BeautifulSoup(archivefile_locator.content, 'lxml')
         # parse response for archive file location
         archivefile_url = record.oa.records.record.find(format='tgz')['href']
         archivefile_name = wget.filename_from_url(archivefile_url)
@@ -174,35 +174,29 @@ class journal_article():
         self.phase['extract_metadata'] = datetime.now()
 
     def xslt_it(self):
-        # Try to apply XSL transform from XML to MediaWiki markup (wikitext)
-        try:
-            doi_file_name = self.doi + '.mw.xml'
-            mw_xml_file = os.path.join(self.parameters["data_dir"], doi_file_name)
-            doi_file_name_pre_slash = doi_file_name.split('/')[0]
-            if doi_file_name_pre_slash == doi_file_name:
-                raise ConversionError(message='I think there should be a slash in the doi', doi=self.doi)
-            mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
-            if not os.path.exists(mw_xml_dir):
-                os.makedirs(mw_xml_dir)
-            mw_xml_file_handle = open(mw_xml_file, 'w')
-            # @TODO may use python lxml library instead of shell call to `xsltproc`
-            # http://lxml.de/xpathxslt.html#xslt
-            # Unclear if there will be a difference in performance / accuracy
-            call_return = call(['xsltproc', self.parameters["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle, stderr=mw_xml_file_handle)
-            if call_return == 0: #things went well
-                mw_xml_file_handle.close()
-                self.mw_xml_file = mw_xml_file
+        from lxml import etree
+        doi_file_name = self.doi + '.mw.xml'
+        mw_xml_file_name = os.path.join(self.parameters["data_dir"], doi_file_name)
+        doi_file_name_pre_slash = doi_file_name.split('/')[0]
+        if doi_file_name_pre_slash == doi_file_name:
+            raise ConversionError(message='I think there should be a slash in the doi', doi=self.doi)
+        mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
+        if not os.path.exists(mw_xml_dir):
+            os.makedirs(mw_xml_dir)
+        new_mw_xml_file = open(mw_xml_file_name, 'w')
+        xslt_root = etree.parse(open(self.parameters["jats2mw_xsl"], 'r'))
+        transform = etree.XSLT(xslt_root)
+        old_mw_xml_root = etree.parse(open(self.nxml_path, 'r'))
+        result = transform(old_mw_xml_root)
+        new_mw_xml_file.write(str(result))
+        new_mw_xml_file.close()
+        self.mw_xml_file = mw_xml_file_name
 
-                self.phase['xslt_it'] = datetime.now()
-
-            else:
-                raise ConversionError(message='something went wrong during the xsltprocessing', doi=self.doi)
-        except:
-            raise ConversionError(message='something went wrong, probably munging the file structure', doi=self.doi)
+        self.phase['xslt_it'] = datetime.now()
 
     # @TODO consider replacing etree with beautifulsoup (bs4), since we already
     # use bs4 above, should not be additional memory cost to traverse it again.
-    # Alternatively, could replace bs4 with etree for performance.
+    # Alternatively, could keep bs4 over etree for performance.
     def get_mwtext_element(self):
         try:
             tree = etree.parse(self.mw_xml_file)
