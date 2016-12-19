@@ -183,8 +183,8 @@ class journal_article():
         mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
         if not os.path.exists(mw_xml_dir):
             os.makedirs(mw_xml_dir)
-        new_mw_xml_file = open(mw_xml_file_name, 'w')
-        xslt_root = etree.parse(open(self.parameters["jats2mw_xsl"], 'r'))
+        new_mw_xml_file = open(mw_xml_file_name, 'w', encoding = 'utf-8')
+        xslt_root = etree.parse(open(self.parameters["jats2mw_xsl"], 'r', encoding = 'utf-8'))
         transform = etree.XSLT(xslt_root)
         old_mw_xml_root = etree.parse(open(self.nxml_path, 'r'))
         result = transform(old_mw_xml_root)
@@ -199,9 +199,10 @@ class journal_article():
     # Alternatively, could keep bs4 over etree for performance.
     def get_mwtext_element(self):
         try:
-            tree = etree.parse(self.mw_xml_file)
+            tree = etree.parse(open(self.mw_xml_file, 'r', encoding = 'utf-8'))
             root = tree.getroot()
             mwtext = root.find('mw:page/mw:revision/mw:text', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
+            logger.debug('tree is ' + str(tree) + ' mwtext is ' + str(mwtext))
             self.wikitext = mwtext.text
 
             self.phase['get_mwtext_element'] = datetime.now()
