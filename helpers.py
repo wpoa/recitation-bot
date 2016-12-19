@@ -3,7 +3,7 @@ import os
 import logging
 import requests
 
-logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='./recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 #want to make the name commons-compatible in the way that OAMI does
 def harmonizing_name(image_name, article_title):
@@ -11,7 +11,7 @@ def harmonizing_name(image_name, article_title):
     dirty_prefix = article_title
     dirty_prefix = dirty_prefix.replace('\n', '')
     dirty_prefix = ' '.join(dirty_prefix.split()) # remove multiple spaces
-    forbidden_chars = u"""?,;:^/!<>"`'±#[]|{}ʻʾʿ᾿῾‘’“”"""
+    forbidden_chars = """?,;:^/!<>"`'±#[]|{}ʻʾʿ᾿῾‘’“”"""
     for character in forbidden_chars:
         dirty_prefix = dirty_prefix.replace(character, '')
     # prefix is first hundred chars of title sans forbidden characters
@@ -31,7 +31,7 @@ def title_cleaner(article_title):
     dirty_prefix = article_title
     dirty_prefix = dirty_prefix.replace('\n', ' ')
     dirty_prefix = ' '.join(dirty_prefix.split()) # remove multiple spaces
-    forbidden_chars = u"""?,;:^/!<>"`'±#[]|{}ʻʾʿ᾿῾‘’“”"""
+    forbidden_chars = """?,;:^/!<>"`'±#[]|{}ʻʾʿ᾿῾‘’“”"""
     for character in forbidden_chars:
         dirty_prefix = dirty_prefix.replace(character, '')
     return dirty_prefix
@@ -65,7 +65,7 @@ def find_file_in_commons(filename):
                            '&srsearch=' + filename +
                            '&srlimit=1' +
                            '&format=json')
-    if results.json()[u'query'][u'searchinfo'][u'totalhits'] == 1:
-        return results.json()[u'query'][u'search'][0][u'title']
+    if results.json()['query']['searchinfo']['totalhits'] == 1:
+        return results.json()['query']['search'][0]['title']
     else:
         return False

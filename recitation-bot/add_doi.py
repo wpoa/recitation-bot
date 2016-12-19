@@ -1,1 +1,0 @@
-../../public_html/cgi-bin/add_doi.py

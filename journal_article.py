@@ -3,13 +3,12 @@
 import requests
 from bs4 import BeautifulSoup
 import wget
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import tarfile
 import os
 from subprocess import call
 import xml.etree.ElementTree as etree
 import pywikibot
-from collections import defaultdict
 from functools import wraps
 import re
 import ast
@@ -18,9 +17,12 @@ import commons_template
 import helpers
 import logging
 import time
+from datetime import datetime
 #import mwparserfromhell
 
-logging.basicConfig(filename='/data/project/recitation-bot/public_html/recitation-bot-log.html', format='%(asctime)s %(message)s', level=logging.DEBUG)
+from collections import OrderedDict
+
+logger = logging.getLogger()
 
 class journal_article():
 
@@ -29,16 +31,29 @@ class journal_article():
     (the primary object for this application),
     and its lifecycle to make it to Wikisource.
     '''
+    phases = [
+        ('get_pmcid', None),
+        ('get_targz', None),
+        ('extract_targz', None),
+        ('find_nxml', None),
+        ('extract_metadata', None),
+        ('xslt_it', None),
+        ('get_mwtext_element', None),
+        ('upload_images', None),
+        ('replace_image_names_in_wikitext', None),
+        ('replace_supplementary_material_links_in_wikitext', None),
+        ('push_to_wikisource', None),
+        ('push_redirect_wikisource', None)
+    ]
 
-    def __init__(self, doi, article, parameters):
+    def __init__(self, doi, parameters):
         '''
         journal_articles are represented by dois
         '''
         if doi.startswith('http://dx.doi.org/'): # NOTE: https does not resolve
             doi_parts = doi.split('http://dx.doi.org/')
-            doi = doi_parts[1] 
+            doi = doi_parts[1]
         self.doi = doi
-        self.article = article
         self.parameters = parameters
 
         #use these for image uploading
@@ -49,7 +64,18 @@ class journal_article():
 
         # Phases, for example: (a) downloaded article, (b) extracted article's
         # pmcid, (c) uploaded the images to commons, etc.
-        self.phase = defaultdict(bool)
+        self.init_phases()
+
+    def init_phases(self):
+        self.phase = OrderedDict(self.__class__.phases)
+
+    def refresh(self):
+        '''
+        This method does what is necessary to update an old journal_article object loaded from the shelf
+        currently it just makes self.phase an OrderedDict if it is not already
+        '''
+        if type(self.phase) is not OrderedDict:
+            self.init_phases()
 
     # @TODO consider deprecating this for extract_metadata()
     # Already using OAMI method of getting PMID and PMCID
@@ -67,11 +93,15 @@ class journal_article():
                 if len(records) == 1:
                     # since we are supplying a single doi, assumes we receive only 1 record
                     record = records[0]
-                    self.pmcid = record['pmcid']
+                    if 'status' in record and record['status'] == 'error':
+                        # a PMCID was not found for this
+                        reachable = True
+                        self.pmcid = None
+                        break
+                    else:
+                        self.pmcid = record['pmcid']
                 else:
                     raise ConversionError(message='not just one pmcid for a doi',doi=self.doi)
-                
-            
 
                 reachable = True
                 break
@@ -80,14 +110,14 @@ class journal_article():
         if not reachable:
             raise ConversionError(message='usually this is because PMCs API has gone down. Try clicking this URL to see: <br /> <a href="http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=%s&format=json">API link</a>' % self.doi  ,doi=self.doi)
 
-        self.phase['get_pmcid'] = True
+        self.phase['get_pmcid'] = datetime.now()
 
     # @TODO consider including .zip download as well or alternative
     def get_targz(self):
         # make request for archive file location
         archivefile_payload = {'id' : self.pmcid}
         archivefile_locator = requests.get('http://www.pubmedcentral.nih.gov/utils/oa/oa.fcgi', params=archivefile_payload)
-        record = BeautifulSoup(archivefile_locator.content)
+        record = BeautifulSoup(archivefile_locator.content, 'lxml')
         # parse response for archive file location
         archivefile_url = record.oa.records.record.find(format='tgz')['href']
         archivefile_name = wget.filename_from_url(archivefile_url)
@@ -98,10 +128,10 @@ class journal_article():
         # Using urllib.urlretrieve() instead of wget for now:
 
         # Download targz
-        urllib.urlretrieve(archivefile_url, complete_path_targz)
+        urllib.request.urlretrieve(archivefile_url, complete_path_targz)
         self.complete_path_targz = complete_path_targz
 
-        self.phase['get_targz'] = True
+        self.phase['get_targz'] = datetime.now()
 
 
     def extract_targz(self):
@@ -111,22 +141,22 @@ class journal_article():
             tar = tarfile.open(self.complete_path_targz, 'r:gz')
             tar.extractall(self.parameters["data_dir"])
 
-            self.phase['extract_targz'] = True
+            self.phase['extract_targz'] = datetime.now()
 
         except:
             raise ConversionError(message='trouble extracting the targz', doi=self.doi)
 
     def find_nxml(self):
         try:
-            self.qualified_article_dir = os.path.join(self.parameters["data_dir"], self.article_dir)
+            self.qualified_article_dir = self.article_dir
             nxml_files = [file for file in os.listdir(self.qualified_article_dir) if file.endswith(".nxml")]
             if len(nxml_files) != 1:
                 raise ConversionError(message='we need exactly 1 nxml file, no more, no less', doi=self.doi)
             nxml_file = nxml_files[0]
-            logging.info('the nxml file being used is: %s' % str(nxml_file))
+            logger.info('the nxml file being used is: %s' % str(nxml_file))
             self.nxml_path = os.path.join(self.qualified_article_dir, nxml_file)
 
-            self.phase['find_nxml'] = True
+            self.phase['find_nxml'] = datetime.now()
 
         except ConversionError as ce:
             raise ce
@@ -135,52 +165,47 @@ class journal_article():
 
     def extract_metadata(self):
         self.metadata = pmc_extractor.extract_metadata(self.nxml_path)
-        #logging.info(str(self.metadata))
+        logger.info(str(self.metadata))
         if not any([self.metadata['article-license-url'],
                    self.metadata['article-license-text'],
                    self.metadata['article-copyright-statement']]):
             raise ConversionError(message='no article license', doi=self.doi)
 
-        self.phase['extract_metadata'] = True
+        self.phase['extract_metadata'] = datetime.now()
 
     def xslt_it(self):
-        # Try to apply XSL transform from XML to MediaWiki markup (wikitext)
-        try:
-            doi_file_name = self.doi + '.mw.xml'
-            mw_xml_file = os.path.join(self.parameters["data_dir"], doi_file_name)
-            doi_file_name_pre_slash = doi_file_name.split('/')[0]
-            if doi_file_name_pre_slash == doi_file_name:
-                raise ConversionError(message='I think there should be a slash in the doi', doi=self.doi)
-            mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
-            if not os.path.exists(mw_xml_dir):
-                os.makedirs(mw_xml_dir)
-            mw_xml_file_handle = open(mw_xml_file, 'w')
-            # @TODO may use python lxml library instead of shell call to `xsltproc`
-            # http://lxml.de/xpathxslt.html#xslt
-            # Unclear if there will be a difference in performance / accuracy
-            call_return = call(['xsltproc', self.parameters["jats2mw_xsl"], self.nxml_path], stdout=mw_xml_file_handle)
-            if call_return == 0: #things went well
-                mw_xml_file_handle.close()
-                self.mw_xml_file = mw_xml_file
+        from lxml import etree
+        doi_file_name = self.doi + '.mw.xml'
+        mw_xml_file_name = os.path.join(self.parameters["data_dir"], doi_file_name)
+        doi_file_name_pre_slash = doi_file_name.split('/')[0]
+        if doi_file_name_pre_slash == doi_file_name:
+            raise ConversionError(message='I think there should be a slash in the doi', doi=self.doi)
+        mw_xml_dir = os.path.join(self.parameters["data_dir"], doi_file_name_pre_slash)
+        if not os.path.exists(mw_xml_dir):
+            os.makedirs(mw_xml_dir)
+        new_mw_xml_file = open(mw_xml_file_name, 'w', encoding = 'utf-8')
+        xslt_root = etree.parse(open(self.parameters["jats2mw_xsl"], 'r', encoding = 'utf-8'))
+        transform = etree.XSLT(xslt_root)
+        old_mw_xml_root = etree.parse(open(self.nxml_path, 'r'))
+        result = transform(old_mw_xml_root)
+        new_mw_xml_file.write(str(result))
+        new_mw_xml_file.close()
+        self.mw_xml_file = mw_xml_file_name
 
-                self.phase['xslt_it'] = True
-
-            else:
-                raise ConversionError(message='something went wrong during the xsltprocessing', doi=self.doi)
-        except:
-            raise ConversionError(message='something went wrong, probably munging the file structure', doi=self.doi)
+        self.phase['xslt_it'] = datetime.now()
 
     # @TODO consider replacing etree with beautifulsoup (bs4), since we already
     # use bs4 above, should not be additional memory cost to traverse it again.
-    # Alternatively, could replace bs4 with etree for performance.
+    # Alternatively, could keep bs4 over etree for performance.
     def get_mwtext_element(self):
         try:
-            tree = etree.parse(self.mw_xml_file)
+            tree = etree.parse(open(self.mw_xml_file, 'r', encoding = 'utf-8'))
             root = tree.getroot()
-            mwtext = root.find('mw:page/mw:revision/mw:text', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
+            mwtext = root.find('page/revision/text', namespaces={'mediawiki':'http://www.mediawiki.org/xml/export-0.8/'})
+            logger.debug('tree is ' + str(tree) + ' mwtext is ' + str(mwtext))
             self.wikitext = mwtext.text
 
-            self.phase['get_mwtext_element'] = True
+            self.phase['get_mwtext_element'] = datetime.now()
 
         except:
             raise ConversionError(message='no text element')
@@ -191,7 +216,7 @@ class journal_article():
             for image in metadata[image_dict]:
                 image_file, qualified_image_location = helpers.find_right_extension(image, self.qualified_article_dir)
 
-                logging.info(image_file)
+                logger.info(image_file)
 
                 if image_file: #we found a valid image file
                     harmonized_name = helpers.harmonizing_name(image_file, metadata['article-title'])
@@ -200,34 +225,34 @@ class journal_article():
                     page_text = commons_template.page(metadata, metadata[image_dict][image]['caption'])
                     image_page._text = page_text
                     try:
-                        site.upload(imagepage=image_page, source_filename=qualified_image_location, 
+                        site.upload(imagepage=image_page, source_filename=qualified_image_location,
                                        comment='Automatic upload of media from: [[doi:' + self.doi+']]',
                                        ignore_warnings=False)
                                            # "ignore_warnings" means "overwrite" if True
-                        logging.info('Uploaded image %s' % image_file)
+                        logger.info('Uploaded image %s' % image_file)
                         metadata[image_dict][image]['uploaded_name'] = harmonized_name
                     except pywikibot.exceptions.UploadWarning as warning:
-                        warning_string = unicode(warning)
+                        warning_string = str(warning)
                         if warning_string.startswith('Uploaded file is a duplicate of '):
                             liststring = warning_string.split('Uploaded file is a duplicate of ')[1][:-1]
                             duplicate_list = ast.literal_eval(liststring)
                             duplicate_name = duplicate_list[0]
-                            print 'duplicate found: ', duplicate_name
-                            logging.info('Duplicate image %s' % image_file)
+                            logger.info('duplicate found: ', duplicate_name)
+                            logger.info('Duplicate image %s' % image_file)
                             metadata[image_dict][image]['uploaded_name'] = duplicate_name
                         elif warning_string.endswith('already exists.'):
-                            logging.info('Already exists image %s' % image_file)
+                            logger.info('Already exists image %s' % image_file)
                             metadata[image_dict][image]['uploaded_name'] = harmonized_name
                         else:
                             raise
-        
+
 
         #now we start calling the uploader
         upload_sites = list()
         sites_map = {'commons':self.commons,
                      'equations':self.equations,
                      'tables':self.tables}
-        for sitestr, flag in im_uploads.iteritems():
+        for sitestr, flag in im_uploads.items():
             upload_sites.append(sites_map[sitestr])
 
         for lang, family, image_dict in upload_sites:
@@ -237,33 +262,33 @@ class journal_article():
 
             upload(site, self.metadata, image_dict)
 
-        self.phase['upload_images'] = True
+        self.phase['upload_images'] = datetime.now()
 
     def replace_image_names_in_wikitext(self):
 
         def replace(metadata, image_dict, replacing_text):
-            for image in metadata[image_dict].iterkeys():
+            for image in metadata[image_dict].keys():
                 extensionless_re = r'File:(' + image + r')\|'
-                logging.info('extensionless re: %s' % extensionless_re)
+                logger.info('extensionless re: %s' % extensionless_re)
                 try:
                     new_file_text = r'File:' + metadata[image_dict][image]['uploaded_name'] + r'|'
                     replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
-                    logging.info('re stuff: %s, %s, %s' % (extensionless_re, new_file_text,  occurrences) ) 
+                    logger.info('re stuff: %s, %s, %s' % (extensionless_re, new_file_text,  occurrences) )
                     if occurrences != 1:
-                        logging.info('not one replace occurence %s, %s ' % (occurrences, image))
+                        logger.info('not one replace occurence %s, %s ' % (occurrences, image))
                 except KeyError:
                     #the file may not have been uploaded and thus not have an uploaded name
                     continue #on to the next image
             return replacing_text
-        
+
 
         self.image_fixed_wikitext = self.wikitext #it will become image_fixed_wikitext
         for lang, family, image_dict in [self.commons, self.equations, self.tables]:
             #we don't need lang or family for this, but i keep the loop just for formalism
-            logging.info('now replacing: %s' % image_dict)
-            self.image_fixed_wikitext = replace(self.metadata, image_dict, self.image_fixed_wikitext)    
-        
-        self.phase['replace_image_names_in_wikitext'] = True
+            logger.info('now replacing: %s' % image_dict)
+            self.image_fixed_wikitext = replace(self.metadata, image_dict, self.image_fixed_wikitext)
+
+        self.phase['replace_image_names_in_wikitext'] = datetime.now()
 
     def replace_supplementary_material_links_in_wikitext(self):
         replacing_text = self.image_fixed_wikitext
@@ -282,14 +307,14 @@ class journal_article():
 
                 replacing_text, occurrences = re.subn(extensionless_re, new_file_text, replacing_text)
                 if occurrences != 1:
-                    print occurrences, material
+                    print(occurrences, material)
                     # print replacing_text
             except KeyError:
                 continue #on to the next image
         # replace the text
         self.image_fixed_wikitext = replacing_text
 
-        self.phase['replace_supplementary_material_links_in_wikitext'] = True
+        self.phase['replace_supplementary_material_links_in_wikitext'] = datetime.now()
 
     def push_to_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
@@ -301,7 +326,7 @@ class journal_article():
         page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
         self.wiki_link = page.title(asLink=True)
 
-        self.phase['push_to_wikisource'] = True
+        self.phase['push_to_wikisource'] = datetime.now()
     def push_redirect_wikisource(self):
         site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
         page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
@@ -309,7 +334,7 @@ class journal_article():
         redirtext = '#REDIRECT [[' + self.wikisource_title +']]'
         page.put(newtext=redirtext, botflag=True, comment=comment)
 
-        self.phase['push_redirect_wikisource'] = True
+        self.phase['push_redirect_wikisource'] = datetime.now()
 
 
     def urlstr(self):
@@ -327,8 +352,8 @@ class journal_article():
 
     def htmlstr(self):
         return_string = 'See <a href="https://en.wikisource.org/wiki/%s">%s</a>\n' % (self.wikisource_title, self.wikisource_title)
-        for metadata, val in self.metadata.iteritems():
-            return_string += u'<p>' + unicode(metadata) + u':' + unicode(val) + u'</p>' + u'\n'
+        for metadata, val in self.metadata.items():
+            return_string += '<p>' + str(metadata) + ':' + str(val) + '</p>' + '\n'
         return return_string
 
 class ConversionError(Exception):
