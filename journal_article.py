@@ -201,7 +201,7 @@ class journal_article():
         try:
             tree = etree.parse(open(self.mw_xml_file, 'r', encoding = 'utf-8'))
             root = tree.getroot()
-            mwtext = root.find('mw:page/mw:revision/mw:text', namespaces={'mw':'http://www.mediawiki.org/xml/export-0.8/'})
+            mwtext = root.find('page/revision/text', namespaces={'mediawiki':'http://www.mediawiki.org/xml/export-0.8/'})
             logger.debug('tree is ' + str(tree) + ' mwtext is ' + str(mwtext))
             self.wikitext = mwtext.text
 
