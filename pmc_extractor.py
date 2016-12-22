@@ -259,8 +259,8 @@ def _get_article_licensing(tree):
     licence_url = None
     copyright_statement_text = None
 
-    licence = tree.find('front//*license')
-    copyright_statement = tree.find('front//*copyright-statement')
+    licence = tree.find(u'front//*license')
+    copyright_statement = tree.find(u'front//*copyright-statement')
 
     code = 'utf-8'
 
@@ -271,13 +271,13 @@ def _get_article_licensing(tree):
 
     if licence is not None:
         try:
-            licence_url = licence.attrib['{http://www.w3.org/1999/xlink}href']
+            licence_url = licence.attrib[u'{http://www.w3.org/1999/xlink}href']
         except KeyError: # licence URL is possibly in <ext-link> element
             try:
-                ext_link = licence.find('license-p/ext-link')
+                ext_link = licence.find(u'license-p/ext-link')
                 if ext_link is not None:
                     licence_url = \
-                        ext_link.attrib['{http://www.w3.org/1999/xlink}href']
+                        ext_link.attrib[u'{http://www.w3.org/1999/xlink}href']
             except KeyError: # licence statement maybe is in plain text
                 pass
         try:
@@ -291,12 +291,10 @@ def _get_article_licensing(tree):
         #logging.error('No <license> or <copyright-statement> element found in XML.')
         return None, None, None
 
-    print(licence_url, licence_text)
     if licence_url is None:
         if licence_text is not None:
            try:
                licence_url = license_url_equivalents[licence_text.encode(code).decode(code)]
-               print(licence_url)
            except KeyError:
              #logging.error('Unknown licence: %s', licence_text)
              pass
@@ -454,7 +452,6 @@ def _get_supplementary_material_url(pmcid, href):
     """
     return str('http://www.ncbi.nlm.nih.gov/pmc/articles/PMC' + pmcid +
         '/bin/' + href)
-
 
 if __name__ == '__main__':
     #test that we can pull from the Open License Dict well
