@@ -51,7 +51,16 @@ def convert_and_upload(doi, shelf_filename):
                                 curr_ja.metadata[surgery_map[sitestr]] = prev_ja.metadata[surgery_map[sitestr]]
                 # refresh journal article's parameters to current ones (they should probably be passed in to the methods instead where needed)
                 curr_ja.parameters = parameters
-                method_params = {}
+                if method == 'upload_images':
+                    method_params = {'im_uploads' : {}}
+                    # per Max:
+                    # im_uploads = {'commons':True, 'equations':True, 'tables':True} is a dict about whether you should do these things
+                    # if the DOI doesn't exist they default to true. if the DOI does exist, we deafult to false
+                    # BUT the user should have the option to turn them on
+                    # in case they know something special about the DOI, like a correction was published
+                    # TODO per Anthony: change to keyword arguments
+                else:
+                    method_params = {}
                 getattr(curr_ja, method)(**method_params)
                 logger.info('completed phase: %s' % method)
                 shelf[doi] = curr_ja
