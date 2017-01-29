@@ -8,7 +8,6 @@ import tarfile
 import os
 from subprocess import call
 import xml.etree.ElementTree as etree
-import pywikibot
 from functools import wraps
 import re
 import ast
@@ -17,8 +16,11 @@ import commons_template
 import helpers
 import logging
 import time
+import mwclient
 from datetime import datetime
-#import mwparserfromhell
+from locate import locate
+
+wiki_uname, wiki_passwd = eval( open( locate('.pywikibot/secretsfile') ).read() )
 
 from collections import OrderedDict
 
@@ -60,7 +62,6 @@ class journal_article():
         self.commons = ('commons', 'commons', 'images')
         self.equations = (self.parameters['wikisource_site'], 'wikisource', 'equations')
         self.tables = (self.parameters['wikisource_site'], 'wikisource', 'tables')
-
 
         # Phases, for example: (a) downloaded article, (b) extracted article's
         # pmcid, (c) uploaded the images to commons, etc.
@@ -106,7 +107,7 @@ class journal_article():
                 reachable = True
                 break
             except ValueError as e:
-                time.sleep(2)
+                pass
         if not reachable:
             raise ConversionError(message='usually this is because PMCs API has gone down. Try clicking this URL to see: <br /> <a href="http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=%s&format=json">API link</a>' % self.doi  ,doi=self.doi)
 
@@ -220,45 +221,31 @@ class journal_article():
 
                 if image_file: #we found a valid image file
                     harmonized_name = helpers.harmonizing_name(image_file, metadata['article-title'])
-                        #print harmonized_name
-                    image_page = pywikibot.ImagePage(site, harmonized_name)
+                    image_page = mwclient.page.Page(site, harmonized_name)
                     page_text = commons_template.page(metadata, metadata[image_dict][image]['caption'])
                     image_page._text = page_text
                     try:
-                        site.upload(imagepage=image_page, source_filename=qualified_image_location,
-                                       comment='Automatic upload of media from: [[doi:' + self.doi+']]',
-                                       ignore_warnings=False)
-                                           # "ignore_warnings" means "overwrite" if True
+                        site.upload(open(qualified_image_location, 'rb'),
+                                    harmonized_name,
+                                    'Automatic upload of media from: [[doi:' + self.doi+']]',
+                                   )
                         logger.info('Uploaded image %s' % image_file)
                         metadata[image_dict][image]['uploaded_name'] = harmonized_name
-                    except pywikibot.exceptions.UploadWarning as warning:
-                        warning_string = str(warning)
-                        if warning_string.startswith('Uploaded file is a duplicate of '):
-                            liststring = warning_string.split('Uploaded file is a duplicate of ')[1][:-1]
-                            duplicate_list = ast.literal_eval(liststring)
-                            duplicate_name = duplicate_list[0]
-                            logger.info('duplicate found: ', duplicate_name)
-                            logger.info('Duplicate image %s' % image_file)
-                            metadata[image_dict][image]['uploaded_name'] = duplicate_name
-                        elif warning_string.endswith('already exists.'):
-                            logger.info('Already exists image %s' % image_file)
-                            metadata[image_dict][image]['uploaded_name'] = harmonized_name
-                        else:
-                            raise
-
+                        image_page.save(text = page_text, bot = True)
+                    except e:
+                        logger.info('Error uploading image %s' % image_file)
 
         #now we start calling the uploader
         upload_sites = list()
-        sites_map = {'commons':self.commons,
-                     'equations':self.equations,
-                     'tables':self.tables}
+        sites_map = {'commons':'commons.wikimedia.org',
+                     'equations':'en.wikisource.org',
+                     'tables':'en.wikisource.org'}
         for sitestr, flag in im_uploads.items():
             upload_sites.append(sites_map[sitestr])
 
         for lang, family, image_dict in upload_sites:
-            site = pywikibot.Site(lang, family)
-            if not site.logged_in():
-                site.login()
+            site = mwclient.Site(lang, family)
+            site.login(wiki_uname, wiki_passwd)
 
             upload(site, self.metadata, image_dict)
 
@@ -317,22 +304,30 @@ class journal_article():
         self.phase['replace_supplementary_material_links_in_wikitext'] = datetime.now()
 
     def push_to_wikisource(self):
-        site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
+        logger.info('connecting to wikisource')
+        site = mwclient.Site('en.wikisource.org')
+        site.login(wiki_uname, wiki_passwd)
+        logger.info('made Site object %s' % str(site))
         self.wikisource_title = self.parameters["wikisource_basepath"] + helpers.title_cleaner(self.metadata['article-title'])
-        if len(self.wikisource_title) > 255:
-                self.wikisource_title = self.wikisource_title[:255]
-        page = pywikibot.Page(site, self.wikisource_title)
+        self.wikisource_title = self.wikisource_title[:255]
+        page = mwclient.page.Page(site, self.wikisource_title)
+        logger.info('made Page object %s' % str(page))
         comment = "Imported [[doi:"+self.doi+"]] from http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id="+self.pmcid+" by recitation-bot v0.1"
-        page.put(newtext=self.image_fixed_wikitext, botflag=True, comment=comment)
-        self.wiki_link = page.title(asLink=True)
+        logger.info('about to push doi %s with page %s to wikisource' % (str(self.doi), str(page)))
+        page.save(bot = True, text = self.image_fixed_wikitext)
+        logger.info('pushed '+self.doi+' to wikisource')
+        # self.wiki_link = page.title(asLink=True) # TODO currently broken, need to reimplement since unsupported by mwclient
 
         self.phase['push_to_wikisource'] = datetime.now()
+
     def push_redirect_wikisource(self):
-        site = pywikibot.Site(self.parameters["wikisource_site"], "wikisource")
-        page = pywikibot.Page(site, self.parameters["wikisource_basepath"] + self.doi)
+        site = mwclient.Site('en.wikisource.org')
+        site.login(wiki_uname, wiki_passwd)
+        page = mwclient.page.Page(site, self.parameters["wikisource_basepath"] + self.doi)
         comment = "Making a redirect"
         redirtext = '#REDIRECT [[' + self.wikisource_title +']]'
-        page.put(newtext=redirtext, botflag=True, comment=comment)
+        page.text(redirtext)
+        page.save(text = redirtext, bot = True)
 
         self.phase['push_redirect_wikisource'] = datetime.now()
 
