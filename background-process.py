@@ -52,7 +52,7 @@ def convert_and_upload(doi, shelf_filename):
                 # refresh journal article's parameters to current ones (they should probably be passed in to the methods instead where needed)
                 curr_ja.parameters = parameters
                 if method == 'upload_images':
-                    method_params = {'im_uploads' : {}}
+                    method_params = {'im_uploads' : {'commons':True, 'equations':True, 'tables':True}}
                     # per Max:
                     # im_uploads = {'commons':True, 'equations':True, 'tables':True} is a dict about whether you should do these things
                     # if the DOI doesn't exist they default to true. if the DOI does exist, we deafult to false
@@ -103,7 +103,7 @@ from sqliteshelf import SQLiteShelf
 shelf_filename = locate('journal_shelf')
 
 def submit_article(doi, pool):
-	callback = lambda doi: logger.info('successfully completed %s' % str(doi))
+	callback = lambda doi: logger.info('successfully completed job for %s' % str(doi))
 	error_callback = lambda error: logger.info('error in job %s' % str(error))
 	pool.apply_async( convert_and_upload, (doi, shelf_filename), callback = callback, error_callback = error_callback)
 
@@ -112,6 +112,10 @@ def run():
 	with closing(SQLiteQueue(locate('work-fifo'))) as work_fifo:
 		def poll_queue():
 			while True:
+				# first, flush logs at regular intervals
+				ch.flush()
+				fh.flush()
+				# now, find a work item to do
 				item = work_fifo.pop()
 				if item: yield item
 				else: time.sleep(1)

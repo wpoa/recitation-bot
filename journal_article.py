@@ -55,7 +55,7 @@ class journal_article():
         if doi.startswith('http://dx.doi.org/'): # NOTE: https does not resolve
             doi_parts = doi.split('http://dx.doi.org/')
             doi = doi_parts[1]
-        self.doi = doi
+        self.doi = doi.strip()
         self.parameters = parameters
 
         #use these for image uploading
@@ -107,7 +107,7 @@ class journal_article():
                 reachable = True
                 break
             except ValueError as e:
-                pass
+                time.sleep(5)
         if not reachable:
             raise ConversionError(message='usually this is because PMCs API has gone down. Try clicking this URL to see: <br /> <a href="http://www.pubmedcentral.nih.gov/utils/idconv/v1.0/?ids=%s&format=json">API link</a>' % self.doi  ,doi=self.doi)
 
@@ -213,16 +213,16 @@ class journal_article():
 
     def upload_images(self, im_uploads):
         #this is the upload procedure which we call in a second
-        def upload(site, metadata, image_dict):
-            for image in metadata[image_dict]:
+        def upload(site, metadata, image_dict_selector): 
+            image_dict = metadata[image_dict_selector]
+            for image in image_dict:
                 image_file, qualified_image_location = helpers.find_right_extension(image, self.qualified_article_dir)
 
-                logger.info(image_file)
-
                 if image_file: #we found a valid image file
+                    logger.info("Attempting upload of %s" % image_file)
                     harmonized_name = helpers.harmonizing_name(image_file, metadata['article-title'])
                     image_page = mwclient.page.Page(site, harmonized_name)
-                    page_text = commons_template.page(metadata, metadata[image_dict][image]['caption'])
+                    page_text = commons_template.page(metadata, metadata[image_dict_selector][image]['caption']) #need this triple indexing because caption isn't anywhere else #TODO
                     image_page._text = page_text
                     try:
                         site.upload(open(qualified_image_location, 'rb'),
@@ -230,24 +230,25 @@ class journal_article():
                                     'Automatic upload of media from: [[doi:' + self.doi+']]',
                                    )
                         logger.info('Uploaded image %s' % image_file)
-                        metadata[image_dict][image]['uploaded_name'] = harmonized_name
+                        metadata[image_dict_selector][image]['uploaded_name'] = harmonized_name #TODO less long-winded indexing
                         image_page.save(text = page_text, bot = True)
-                    except e:
+                    except:
                         logger.info('Error uploading image %s' % image_file)
 
         #now we start calling the uploader
         upload_sites = list()
-        sites_map = {'commons':'commons.wikimedia.org',
-                     'equations':'en.wikisource.org',
-                     'tables':'en.wikisource.org'}
+        # sites_map associates types of article elements with their destinations in a somewhat indirect way TODO
+        sites_map = {'commons': ('commons.wikimedia.org', 'images'),
+                     'equations': ('en.wikisource.org', 'equations'),
+                     'tables': ('en.wikisource.org', 'tables')}
         for sitestr, flag in im_uploads.items():
-            upload_sites.append(sites_map[sitestr])
+            if flag: upload_sites.append(sites_map[sitestr])
 
-        for lang, family, image_dict in upload_sites:
-            site = mwclient.Site(lang, family)
+        for site_url, image_dict_selector in upload_sites:
+            site = mwclient.Site(site_url)
             site.login(wiki_uname, wiki_passwd)
 
-            upload(site, self.metadata, image_dict)
+            upload(site, self.metadata, image_dict_selector)
 
         self.phase['upload_images'] = datetime.now()
 
