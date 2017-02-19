@@ -221,17 +221,17 @@ class journal_article():
                 if image_file: #we found a valid image file
                     logger.info("Attempting upload of %s" % image_file)
                     harmonized_name = helpers.harmonizing_name(image_file, metadata['article-title'])
-                    image_page = mwclient.page.Page(site, harmonized_name)
+                    # image_page = mwclient.page.Page(site, harmonized_name) # try not uploading a separate image page
                     page_text = commons_template.page(metadata, metadata[image_dict_selector][image]['caption']) #need this triple indexing because caption isn't anywhere else #TODO
-                    image_page._text = page_text
+                    # image_page._text = page_text # try not uploading a separate image page
                     try:
                         site.upload(open(qualified_image_location, 'rb'),
                                     harmonized_name,
-                                    'Automatic upload of media from: [[doi:' + self.doi+']]',
+                                    'Automatic upload of media from: [[doi:%s]]\n%s' % (self.doi, page_text)
                                    )
                         logger.info('Uploaded image %s' % image_file)
                         metadata[image_dict_selector][image]['uploaded_name'] = harmonized_name #TODO less long-winded indexing
-                        image_page.save(text = page_text, bot = True)
+                        # image_page.save(text = page_text, bot = True) # try not uploading a separate image page
                     except:
                         logger.info('Error uploading image %s' % image_file)
 
